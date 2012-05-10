@@ -3,11 +3,6 @@
 #include <stdio.h>
 #include <pthread.h>
 
-// Shared object size configured to 8 to ease output
-#define OBJ_SIZE 8
-#define NOBJS 20
-char *objs;
-
 #define NITER 10000
 
 pthread_barrier_t barrier;
@@ -28,23 +23,10 @@ void *access_thr_fn(void *dummyid) {
     }
 }
 
-void print_objs() {
-    for (int j = 0; j < NOBJS; j++) {
-        int64_t *addr = (int64_t *)(objs + j * OBJ_SIZE);
-        printf("%lx\n", *addr);
-    }
-}
-
 int main(int argc, const char *argv[]) {
     int nthr = 0;
     if (argc != 2) {
         printf("Usage: %s <no of threads>\n", argv[0]);
-        exit(1);
-    }
-
-    objs = calloc(NOBJS, OBJ_SIZE);
-    if (!objs) {
-        printf("memory allocation failed\n");
         exit(1);
     }
 
