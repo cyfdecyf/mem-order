@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-char *objs;
+int64_t *objs;
 
 static void __constructor__ init() {
     if (posix_memalign((void **)&objs, OBJ_SIZE, NOBJS * OBJ_SIZE) != 0) {
@@ -12,9 +12,16 @@ static void __constructor__ init() {
 }
 
 void print_objs(void) {
-    for (int j = 0; j < NOBJS; j++) {
-        int64_t *addr = (int64_t *)(objs + j * OBJ_SIZE);
-        printf("%lx\n", (long)*addr);
+    for (int i = 0; i < NOBJS; i++) {
+        printf("%lx\n", (long)objs[i]);
     }
 }
 
+void *calloc_check(size_t nmemb, size_t size, const char *err_msg) {
+    void *p = calloc(nmemb, size);
+    if (!p) {
+        printf("memory allocation failed: %s\n", err_msg);
+        exit(1);
+    }
+    return p;
+}
