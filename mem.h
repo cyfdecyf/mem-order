@@ -12,8 +12,8 @@
 // objs are aligned to OBJ_SIZE
 extern char *objs;
 
-static inline long obj_id(char *addr) {
-    return (long)(addr - objs) >> 3;
+static inline long obj_id(void *addr) {
+    return (long)((char *)addr - objs) >> 3;
 }
 
 int32_t mem_read(int32_t *addr);
