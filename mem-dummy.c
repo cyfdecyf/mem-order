@@ -8,3 +8,6 @@ int32_t mem_read(int32_t *addr) {
 void mem_write(int32_t *addr, int32_t val) {
     *addr = val;
 }
+
+void mem_init() {}
+void mem_init_thr() {}

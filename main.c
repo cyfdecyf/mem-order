@@ -17,6 +17,8 @@ static void wait_other_thread() {
 }
 
 static void *access_thr_fn(void *dummyid) {
+    mem_init_thr();
+
     pthread_setspecific(thrid_key, dummyid);
     DEFINE_TL_THRID();
 
@@ -41,12 +43,17 @@ int main(int argc, const char *argv[]) {
         exit(1);
     }
 
-    if (pthread_key_create(&thrid_key, NULL))
+    if (pthread_key_create(&thrid_key, NULL)) {
         printf("thr_id key creation failed\n");
+        exit(1);
+    }
 
     nthr = atoi(argv[1]);
     pthread_t *thr;
     thr = calloc_check(nthr, sizeof(pthread_t), "pthread_t array thr");
+
+    // Initialize memory order recorder
+    mem_init();
 
     for (long i = 0; i < nthr; i++) {
         if (pthread_create(&thr[i], NULL, access_thr_fn, (void *)i) != 0) {
