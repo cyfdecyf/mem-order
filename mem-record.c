@@ -6,7 +6,7 @@
 
 typedef struct {
     /* Version is like write counter */
-    int version;
+    volatile int version;
     int last_writer;
     spinlock write_lock;
 } objinfo_t;
@@ -71,18 +71,31 @@ int32_t mem_read(int32_t *addr) {
 void mem_write(int32_t *addr, int32_t val) {
     TLS_tid();
 
+    int version, need_log = 0;
     int objid = obj_id(addr);
     objinfo_t *info = &objinfo[objid];
 
     spin_lock(&info->write_lock);
+    version = info->version;
+
+    // Need to make the version and value change atomically.
+    *addr = val;
+    // Read operation will get wrong version if and only if it
+    // happens between update value and the version.
+    info->version++;
+
     // There's other thread writing to this object before this write.
     // Record version so we get write-write dependency.
     if (info->last_writer != tid) {
-        take_log(TLS(write_log), TLS(memop_cnt), objid, info->version);
         info->last_writer = tid;
+        need_log = 1;
     }
-    *addr = val;
-    info->version++;
-    TLS(prev_version)[objid] = info->version;
     spin_unlock(&info->write_lock);
+
+    TLS(prev_version)[objid] = info->version;
+
+    if (need_log) {
+        take_log(TLS(write_log), TLS(memop_cnt), objid, version);
+    }
+    TLS(memop_cnt)++;
 }
