@@ -5,9 +5,7 @@
 
 #define NITER 10000
 
-pthread_key_t thrid_key;
-
-int nthr;
+static int nthr;
 static volatile int32_t wflag;
 
 static void wait_other_thread() {
@@ -17,10 +15,8 @@ static void wait_other_thread() {
 }
 
 static void *access_thr_fn(void *dummyid) {
-    mem_init_thr();
-
-    pthread_setspecific(thrid_key, dummyid);
-    DEFINE_TL_THRID();
+    long tid = (long)dummyid;
+    mem_init_thr(tid);
 
     wait_other_thread();
 
@@ -29,7 +25,7 @@ static void *access_thr_fn(void *dummyid) {
             // Access a 32bit int inside a 64bit int
             int32_t *addr = (int32_t *)&objs[j];
             // Different threads access different part of the shared object
-            addr += thrid & 1;
+            addr += tid & 1;
             int32_t val = mem_read(addr);
             mem_write(addr, val + 1);
         }
@@ -43,17 +39,12 @@ int main(int argc, const char *argv[]) {
         exit(1);
     }
 
-    if (pthread_key_create(&thrid_key, NULL)) {
-        printf("thr_id key creation failed\n");
-        exit(1);
-    }
-
     nthr = atoi(argv[1]);
     pthread_t *thr;
     thr = calloc_check(nthr, sizeof(pthread_t), "pthread_t array thr");
 
     // Initialize memory order recorder
-    mem_init();
+    mem_init(nthr);
 
     for (long i = 0; i < nthr; i++) {
         if (pthread_create(&thr[i], NULL, access_thr_fn, (void *)i) != 0) {

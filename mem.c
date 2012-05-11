@@ -4,9 +4,15 @@
 
 int64_t *objs;
 
+pthread_key_t tid_key;
+
 static void __constructor__ init() {
     if (posix_memalign((void **)&objs, OBJ_SIZE, NOBJS * OBJ_SIZE) != 0) {
         printf("memory allocation for objs failed\n");
+        exit(1);
+    }
+    if (pthread_key_create(&tid_key, NULL)) {
+        printf("thr_id key creation failed\n");
         exit(1);
     }
 }

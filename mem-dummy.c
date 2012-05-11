@@ -9,5 +9,5 @@ void mem_write(int32_t *addr, int32_t val) {
     *addr = val;
 }
 
-void mem_init() {}
-void mem_init_thr() {}
+void mem_init(int nthr) {}
+void mem_init_thr(long tid) {}
