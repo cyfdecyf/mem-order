@@ -12,14 +12,14 @@
 // objs are aligned to OBJ_SIZE
 extern int64_t *objs;
 
-static inline long obj_id(void *addr) {
+static inline int obj_id(void *addr) {
     return ((long)addr - (long)objs) >> 3;
 }
 
 // Initialization function. Must called after nthr and thread
 // data storage is initialized.
 void mem_init(int nthr);
-void mem_init_thr(long tid);
+void mem_init_thr(int tid);
 
 int32_t mem_read(int32_t *addr);
 void    mem_write(int32_t *addr, int32_t val);
@@ -33,11 +33,13 @@ void print_objs(void);
 
 extern pthread_key_t tid_key;
 #define TLS_tid() \
-    long tid = (long)pthread_getspecific(tid_key)
+    int tid = (int)(long)pthread_getspecific(tid_key)
 
 // Defines the global array.
 #define DEFINE_TLS_GLOBAL(type, var) \
     type *var##_tls
+#define ALLOC_TLS_GLOBAL(nthr, var) \
+    var##_tls = calloc_check(nthr, sizeof(*(var##_tls)), #var)
 
 #define TLS_GLOBAL(var) (var##_tls)
 

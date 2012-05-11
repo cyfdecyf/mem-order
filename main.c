@@ -15,7 +15,7 @@ static void wait_other_thread() {
 }
 
 static void *access_thr_fn(void *dummyid) {
-    long tid = (long)dummyid;
+    int tid = (int)(long)dummyid;
     mem_init_thr(tid);
 
     wait_other_thread();

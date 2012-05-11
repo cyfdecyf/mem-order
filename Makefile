@@ -1,15 +1,18 @@
-CFLAGS = -std=gnu99 -g -O2
+CFLAGS = -std=gnu99 -g -O2 -Wall
 LDFLAGS = -lpthread
 CC = gcc
-OBJS = mem.o
-TARG = dummy-acc
+OBJS = mem.o log.o
+TARG = dummy-acc record
 
 all: $(TARG)
 
-dummy-acc: mem-dummy.o main.o $(OBJS)
+dummy-acc: $(OBJS) mem-dummy.o main.o
 	$(CC) $^ $(LDFLAGS) -o $@
 
-unit-test: unit-test.o $(OBJS)
+record: $(OBJS) mem-record.o main.o
+	$(CC) $^ $(LDFLAGS) -o $@
+
+unit-test: unit-test.o mem.o
 	$(CC) $^ $(LDFLAGS) -o $@
 
 test: unit-test
