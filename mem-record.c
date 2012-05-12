@@ -42,8 +42,7 @@ static void take_log(FILE *log, int memop_cnt, int objid, int version) {
     fprintf(log, "%d %d %d", memop_cnt, objid, version);
 }
 
-int32_t mem_read(int32_t *addr) {
-    TLS_tid();
+int32_t mem_read(int32_t *addr) { TLS_tid();
 
     int cur_version;
     int32_t val;
@@ -52,7 +51,18 @@ int32_t mem_read(int32_t *addr) {
 
     // Re-read if there's writer
     do {
-        cur_version = info->version;
+        // First wait until there is no writer trying to update version and
+        // value.
+        while ((cur_version = info->version) & 1)
+            asm volatile ("pause");
+        // When we reach here, the writer must either
+        // - Not holding the write lock
+        // - Holding the write lock
+        //   - Has not started to update version
+        //   - Has finished updating value and version
+        // We try to read the actual value now.
+        // If the version changes later, it means there's version and
+        // value update, so read should retry.
         val = *addr;
     } while (cur_version != info->version);
 
@@ -78,7 +88,8 @@ void mem_write(int32_t *addr, int32_t val) {
     spin_lock(&info->write_lock);
     version = info->version;
 
-    // Need to make the version and value change atomically.
+    // Odd version means that there's writer.
+    info->version++;
     *addr = val;
     // Read operation will get wrong version if and only if it
     // happens between update value and the version.
