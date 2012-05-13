@@ -7,7 +7,6 @@
 typedef struct {
     /* Version is like write counter */
     volatile int version;
-    int last_writer;
     spinlock write_lock;
 } objinfo_t;
 
@@ -44,7 +43,7 @@ static void take_log(FILE *log, int memop_cnt, int objid, int version) {
 
 int32_t mem_read(int32_t *addr) { TLS_tid();
 
-    int cur_version;
+    int version;
     int32_t val;
     int objid = obj_id(addr);
     objinfo_t *info = &objinfo[objid];
@@ -53,7 +52,7 @@ int32_t mem_read(int32_t *addr) { TLS_tid();
     do {
         // First wait until there is no writer trying to update version and
         // value.
-        while ((cur_version = info->version) & 1)
+        while ((version = info->version) & 1)
             asm volatile ("pause");
         // When we reach here, the writer must either
         // - Not holding the write lock
@@ -64,14 +63,14 @@ int32_t mem_read(int32_t *addr) { TLS_tid();
         // If the version changes later, it means there's version and
         // value update, so read should retry.
         val = *addr;
-    } while (cur_version != info->version);
+    } while (version != info->version);
 
-    // If version changes since last read, there must be writes to this object.
+    // If version changed since last read, there must be writes to this object.
     // During replay, this read should wait the object reach to the current
     // version.
-    if (cur_version != TLS(prev_version)[objid]) {
-        take_log(TLS(read_log), TLS(memop_cnt), objid, cur_version);
-        TLS(prev_version)[objid] = cur_version;
+    if (version != TLS(prev_version)[objid]) {
+        take_log(TLS(read_log), TLS(memop_cnt), objid, version);
+        TLS(prev_version)[objid] = version;
     }
 
     TLS(memop_cnt)++;
@@ -81,32 +80,26 @@ int32_t mem_read(int32_t *addr) { TLS_tid();
 void mem_write(int32_t *addr, int32_t val) {
     TLS_tid();
 
-    int version, need_log = 0;
+    int old_version;
     int objid = obj_id(addr);
     objinfo_t *info = &objinfo[objid];
 
     spin_lock(&info->write_lock);
-    version = info->version;
 
-    // Odd version means that there's writer.
+    old_version = info->version;
+
+    // Odd version means that there's writer trying to update value.
     info->version++;
     *addr = val;
-    // Read operation will get wrong version if and only if it
-    // happens between update value and the version.
     info->version++;
 
-    // There's other thread writing to this object before this write.
-    // Record version so we get write-write dependency.
-    if (info->last_writer != tid) {
-        info->last_writer = tid;
-        need_log = 1;
-    }
     spin_unlock(&info->write_lock);
 
-    TLS(prev_version)[objid] = info->version;
-
-    if (need_log) {
-        take_log(TLS(write_log), TLS(memop_cnt), objid, version);
+    if (TLS(prev_version)[objid] != old_version) {
+        take_log(TLS(write_log), TLS(memop_cnt), objid, old_version);
     }
+
+    TLS(prev_version)[objid] = old_version + 2;
     TLS(memop_cnt)++;
 }
+
