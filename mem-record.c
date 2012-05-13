@@ -6,7 +6,7 @@
 
 typedef struct {
     /* Version is like write counter */
-    volatile int version;
+    int version;
     spinlock write_lock;
 } objinfo_t;
 
@@ -41,19 +41,27 @@ static void take_log(FILE *log, int memop_cnt, int objid, int version) {
     fprintf(log, "%d %d %d", memop_cnt, objid, version);
 }
 
-int32_t mem_read(int32_t *addr) { TLS_tid();
+#define likely(x) __builtin_expect(!!(x), 1)
+#define unlikely(x) __builtin_expect(!!(x), 0)
+
+int32_t mem_read(int32_t *addr) {
+    TLS_tid();
 
     int version;
     int32_t val;
     int objid = obj_id(addr);
     objinfo_t *info = &objinfo[objid];
 
-    // Re-read if there's writer
     do {
         // First wait until there is no writer trying to update version and
         // value.
-        while ((version = info->version) & 1)
-            asm volatile ("pause");
+repeat:
+        version = info->version;
+        barrier();
+        if (unlikely(version & 1)) {
+            cpu_relax();
+            goto repeat;
+        }
         // When we reach here, the writer must either
         // - Not holding the write lock
         // - Holding the write lock
@@ -63,6 +71,8 @@ int32_t mem_read(int32_t *addr) { TLS_tid();
         // If the version changes later, it means there's version and
         // value update, so read should retry.
         val = *addr;
+        barrier();
+        // Re-read if there's writer
     } while (version != info->version);
 
     // If version changed since last read, there must be writes to this object.
@@ -87,10 +97,13 @@ void mem_write(int32_t *addr, int32_t val) {
     spin_lock(&info->write_lock);
 
     old_version = info->version;
+    barrier();
 
     // Odd version means that there's writer trying to update value.
     info->version++;
+    barrier();
     *addr = val;
+    barrier();
     info->version++;
 
     spin_unlock(&info->write_lock);
@@ -102,4 +115,3 @@ void mem_write(int32_t *addr, int32_t val) {
     TLS(prev_version)[objid] = old_version + 2;
     TLS(memop_cnt)++;
 }
-
