@@ -38,7 +38,7 @@ void mem_init_thr(int tid) {
 }
 
 static void take_log(FILE *log, int memop_cnt, int objid, int version) {
-    fprintf(log, "%d %d %d", memop_cnt, objid, version);
+    fprintf(log, "%d %d %d\n", memop_cnt, objid, version);
 }
 
 #define likely(x) __builtin_expect(!!(x), 1)
@@ -78,7 +78,7 @@ repeat:
     // If version changed since last read, there must be writes to this object.
     // During replay, this read should wait the object reach to the current
     // version.
-    if (version != TLS(prev_version)[objid]) {
+    if (TLS(prev_version)[objid] != version) {
         take_log(TLS(read_log), TLS(memop_cnt), objid, version);
         TLS(prev_version)[objid] = version;
     }
