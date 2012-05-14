@@ -2,21 +2,8 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"testing"
 )
-
-// exists returns whether the given file or directory exists or not
-func fileExists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return false, err
-}
 
 func TestNumberOfThreads(t *testing.T) {
 	nthr := numberOfThreads("testdata")
@@ -30,19 +17,19 @@ func TestNumberOfThreads(t *testing.T) {
 }
 
 func TestReadEntry(t *testing.T) {
-	log := openLog("testdata", 0)
-	ent, err := readOneEntry(log)
+	log := openLog("testdata", RDLOG_PATTERN, 0)
+	objid, ent, err := readOneEntry(log)
 	if err != nil {
 		t.Fatal("Reading entry got error", err)
 	}
 
-	if ent != [3]int{0, 0, 4} {
+	if objid != 0 || ent.memop != 0 || ent.version != 4 {
 		t.Log("Get entry:", ent)
 		t.Fatal("Entry wrong")
 	}
 
-	ent, err = readOneEntry(log)
-	if ent != [3]int{2, 1, 38} {
+	objid, ent, err = readOneEntry(log)
+	if objid != 1 || ent.memop != 2 || ent.version != 38 {
 		t.Log("Get entry:", ent)
 		t.Fatal("Entry wrong")
 	}
