@@ -20,7 +20,7 @@ func fileExists(path string) (bool, error) {
 
 func TestNumberOfThreads(t *testing.T) {
 	nthr := numberOfThreads("testdata")
-	fmt.Println("Number of threads ", nthr)
+	fmt.Println("Number of threads", nthr)
 	for i := 0; i < nthr; i++ {
 		if r, _ := fileExists(fmt.Sprintf("testdata/rec-rd-%d", i)); !r {
 			t.Fatal("Number of thread not correct")
@@ -36,7 +36,14 @@ func TestReadEntry(t *testing.T) {
 		t.Fatal("Reading entry got error", err)
 	}
 
-	if ent[0] != 0 {
+	if ent != [3]int{0, 0, 4} {
+		t.Log("Get entry:", ent)
+		t.Fatal("Entry wrong")
+	}
+
+	ent, err = readOneEntry(log)
+	if ent != [3]int{2, 1, 38} {
+		t.Log("Get entry:", ent)
 		t.Fatal("Entry wrong")
 	}
 }
