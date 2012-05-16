@@ -12,8 +12,13 @@ typedef struct {
 
 objinfo_t *objinfo;
 
+typedef struct {
+    int version;
+    int memop;
+} local_objinfo_t;
+
 // Last read version for each object
-DEFINE_TLS_GLOBAL(int *, prev_version);
+DEFINE_TLS_GLOBAL(local_objinfo_t *, prev_info);
 // Memory operation count, including both read and write
 DEFINE_TLS_GLOBAL(int, memop_cnt);
 DEFINE_TLS_GLOBAL(FILE *, read_log);
@@ -21,7 +26,7 @@ DEFINE_TLS_GLOBAL(FILE *, write_log);
 
 void mem_init(int nthr) {
     objinfo = calloc_check(NOBJS, sizeof(*objinfo), "objinfo");
-    ALLOC_TLS_GLOBAL(nthr, prev_version);
+    ALLOC_TLS_GLOBAL(nthr, prev_info);
     ALLOC_TLS_GLOBAL(nthr, memop_cnt);
     ALLOC_TLS_GLOBAL(nthr, read_log);
     ALLOC_TLS_GLOBAL(nthr, write_log);
@@ -31,14 +36,21 @@ void mem_init_thr(int tid) {
     // Must set tid before using the tid_key
     pthread_setspecific(tid_key, (void *)(long)tid);
 
-    TLS(prev_version) = calloc_check(NOBJS, sizeof(*TLS(prev_version)),
-        "prev_version[thrid]");
+    TLS(prev_info) = calloc_check(NOBJS, sizeof(*TLS(prev_info)),
+            "prev_info[thrid]");
     TLS(read_log) = new_log("log/rec-rd", tid);
     TLS(write_log) = new_log("log/rec-wr", tid);
 }
 
-static void take_log(FILE *log, int memop_cnt, int objid, int version) {
-    fprintf(log, "%d %d %d\n", memop_cnt, objid, version);
+static inline void log_read(int objid, int version) {
+    TLS_tid();
+    fprintf(TLS(read_log), "%d %d %d %d\n", TLS(memop_cnt), objid, version,
+            TLS(prev_info)[objid].memop);
+}
+
+static inline void log_write(int objid, int version) {
+    TLS_tid();
+    fprintf(TLS(write_log), "%d %d %d\n", TLS(memop_cnt), objid, version);
 }
 
 #define likely(x) __builtin_expect(!!(x), 1)
@@ -78,11 +90,12 @@ repeat:
     // If version changed since last read, there must be writes to this object.
     // During replay, this read should wait the object reach to the current
     // version.
-    if (TLS(prev_version)[objid] != version) {
-        take_log(TLS(read_log), TLS(memop_cnt), objid, version);
-        TLS(prev_version)[objid] = version;
+    if (TLS(prev_info)[objid].version != version) {
+        log_read(objid, version);
+        TLS(prev_info)[objid].version = version;
     }
 
+    TLS(prev_info)[objid].memop = TLS(memop_cnt);
     TLS(memop_cnt)++;
     return val;
 }
@@ -108,10 +121,10 @@ void mem_write(int32_t *addr, int32_t val) {
 
     spin_unlock(&info->write_lock);
 
-    if (TLS(prev_version)[objid] != old_version) {
-        take_log(TLS(write_log), TLS(memop_cnt), objid, old_version);
+    if (TLS(prev_info)[objid].version != old_version) {
+        log_write(objid, old_version);
     }
 
-    TLS(prev_version)[objid] = old_version + 2;
+    TLS(prev_info)[objid].version = old_version + 2;
     TLS(memop_cnt)++;
 }
