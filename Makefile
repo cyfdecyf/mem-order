@@ -1,8 +1,9 @@
 CFLAGS = -std=gnu99 -g -O2 -Wall
 LDFLAGS = -lpthread
 CC = gcc
+CXX = g++
 OBJS = mem.o log.o
-TARG = dummy-acc record
+TARG = dummy-acc record log/infer
 
 all: $(TARG)
 
@@ -14,6 +15,9 @@ record: $(OBJS) mem-record.o main.o
 
 unit-test: unit-test.o mem.o
 	$(CC) $^ $(LDFLAGS) -o $@
+
+log/infer: log/infer.cpp
+	$(CXX) $^ -o $@
 
 test: unit-test
 	./unit-test
