@@ -54,7 +54,7 @@ func numberOfThreads(dir string) int {
 
 func readOneEntry(reader io.Reader) (objid int, ent memopVersion, err error) {
 	ent = memopVersion{}
-	_, err = fmt.Fscanf(reader, "%d %d %d", &ent.memop, &objid, &ent.version)
+	_, err = fmt.Fscanln(reader, &ent.memop, &objid, &ent.version)
 	if err != nil {
 		return -1, ent, err
 	}
