@@ -13,7 +13,8 @@ typedef struct {
 objinfo_t *objinfo;
 
 typedef struct {
-    int version;
+    int read_version;
+    int write_version;
     int read_memop;
 } last_objinfo_t;
 
@@ -92,9 +93,9 @@ repeat:
     // If version changed since last read, there must be writes to this object.
     // During replay, this read should wait the object reach to the current
     // version.
-    if (TLS(last_info)[objid].version != version) {
+    if (TLS(last_info)[objid].read_version != version) {
         log_read(objid, version);
-        TLS(last_info)[objid].version = version;
+        TLS(last_info)[objid].read_version = version;
     }
 
     // Not every read will take log. To get precise dependency, maintain the
@@ -107,13 +108,13 @@ repeat:
 void mem_write(int32_t *addr, int32_t val) {
     TLS_tid();
 
-    int old_version;
+    int version;
     int objid = obj_id(addr);
     objinfo_t *info = &objinfo[objid];
 
     spin_lock(&info->write_lock);
 
-    old_version = info->version;
+    version = info->version;
     barrier();
 
     // Odd version means that there's writer trying to update value.
@@ -125,11 +126,12 @@ void mem_write(int32_t *addr, int32_t val) {
 
     spin_unlock(&info->write_lock);
 
-    if (TLS(last_info)[objid].version != old_version) {
-        log_write(objid, old_version);
+    if (TLS(last_info)[objid].write_version != version) {
+        log_write(objid, version);
     }
 
-    int new_version = old_version + 2;
-    TLS(last_info)[objid].version = new_version;
+    int new_version = version + 2;
+    TLS(last_info)[objid].read_version = new_version;
+    TLS(last_info)[objid].write_version = new_version;
     TLS(write_memop)++;
 }
