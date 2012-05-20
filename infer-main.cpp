@@ -18,7 +18,5 @@ int main(int argc, char const *argv[]) {
 	istringstream nobj_ss(argv[3]);
 	nobj_ss >> nobj;
 
-	ReadLog rl(nthr, tid, nobj);
-
 	return 0;
 }

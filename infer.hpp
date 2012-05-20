@@ -6,8 +6,6 @@
 #include <iterator>
 #include <fstream>
 
-#define DEBUG
-
 struct ReadLogEnt {
 	int read_memop;
 	int objid;
@@ -26,23 +24,22 @@ struct VerMemop {
 };
 
 struct ReadLog {
-	int nthr;
-	int tid;
 	std::vector<int> prev_version; // Each object has a previsou read version
 	std::vector< std::deque<VerMemop> > version_memop;
-
 	std::ifstream readlog;
 
-	ReadLog(int nthr, int tid, int nobj);
+	// ReadLog(int nobj, const std::string &logpath);
+	ReadLog(int nobj, const char *logpath);
 
-	// Return true if found
+	// Search the last read memop that get value @version.
+	// This read memop is used to generate write-after-read log.	
+	// Return true if found.
 	bool read_at_version_on_obj(int version, int read_objid, int &result_memop);
 
 private:
-#ifdef DEBUG
-	// For debugging. Previous query version to read_at_version_on_obj
-	int prev_query_version;
-#endif
+	// For debug
+	std::vector<int> prev_query_version;
+
 };
 
 #endif

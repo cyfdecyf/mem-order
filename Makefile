@@ -6,8 +6,9 @@ CXXFLAGS = -g -O2 -Wall
 LDFLAGS = -lpthread
 MEMOBJS = mem.o log.o
 TARG = dummy-acc record infer
+TEST = mem-test infer-test
 
-all: $(TARG)
+all: $(TARG) $(TEST)
 
 dummy-acc: $(MEMOBJS) mem-dummy.o mem-main.o
 	$(CC) $^ $(LDFLAGS) -o $@
@@ -17,21 +18,25 @@ mem-record.o: mem.h
 record: $(MEMOBJS) mem-record.o mem-main.o
 	$(CC) $^ $(LDFLAGS) -o $@
 
-unit-test: unit-test.o mem.o
+mem-test: mem-test.o mem.o
 	$(CC) $^ $(LDFLAGS) -o $@
 
-test: unit-test
-	./unit-test
+# The following are for log processing
 
 infer.o: infer.hpp
 
 infer: infer.o infer-main.o
-	$(CXX) $^ $(LDFLAGS) -o $@
+	$(CXX) $^ -o $@
+
+infer-test: infer-test.o infer.o $(MEMOBJS)
+	$(CXX) $^ -o $@ -lboost_unit_test_framework-mt
+
+test: $(TEST)
 
 clean:
 	-rm -f *.o
 	-rm -f $(TARG)
-	-rm unit-test
+	-rm $(TEST)
 
 %.c:
 %.cpp:
