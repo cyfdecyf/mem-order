@@ -41,6 +41,11 @@ void mem_init_thr(int tid) {
 
     TLS(last_info) = calloc_check(NOBJS, sizeof(*TLS(last_info)),
             "prev_info[thrid]");
+    for (int i = 0; i < NOBJS; i++) {
+        // First memop id is 0, initialize last read memop to -1 so we can
+        // distinguish whether there's a last read or not.
+        TLS(last_info)[i].read_memop = -1;
+    }
     TLS(read_log) = new_log("log/rec-rd", tid);
     TLS(write_log) = new_log("log/rec-wr", tid);
 }
