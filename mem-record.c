@@ -22,14 +22,12 @@ typedef struct {
 DEFINE_TLS_GLOBAL(last_objinfo_t *, last_info);
 // Memory operation count, including both read and write
 DEFINE_TLS_GLOBAL(int, read_memop);
-DEFINE_TLS_GLOBAL(int, write_memop);
 DEFINE_TLS_GLOBAL(FILE *, read_log);
 DEFINE_TLS_GLOBAL(FILE *, write_log);
 
 void mem_init(int nthr) {
     objinfo = calloc_check(NOBJS, sizeof(*objinfo), "objinfo");
     ALLOC_TLS_GLOBAL(nthr, last_info);
-    ALLOC_TLS_GLOBAL(nthr, write_memop);
     ALLOC_TLS_GLOBAL(nthr, read_memop);
     ALLOC_TLS_GLOBAL(nthr, read_log);
     ALLOC_TLS_GLOBAL(nthr, write_log);
@@ -58,7 +56,7 @@ static inline void log_read(int objid, int version) {
 
 static inline void log_write(int objid, int version) {
     TLS_tid();
-    fprintf(TLS(write_log), "%d %d %d\n", TLS(write_memop), objid, version);
+    fprintf(TLS(write_log), "%d %d\n", objid, version);
 }
 
 #define likely(x) __builtin_expect(!!(x), 1)
@@ -138,5 +136,4 @@ void mem_write(int32_t *addr, int32_t val) {
     int new_version = version + 2;
     TLS(last_info)[objid].read_version = new_version;
     TLS(last_info)[objid].write_version = new_version;
-    TLS(write_memop)++;
 }
