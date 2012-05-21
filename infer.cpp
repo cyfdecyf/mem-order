@@ -23,7 +23,7 @@ ostream& operator<<(ostream &os, ReadLogEnt &rhs) {
 }
 
 ReadLog::ReadLog(int nobj, const char *logpath) :
-		prev_version(nobj), version_memop(nobj), prev_query_version(nobj, -1) {
+		last_read_version(nobj), version_memop(nobj), prev_query_version(nobj, -1) {
 	// Open read log
 	readlog.open(logpath);
 	if (! readlog) {
@@ -65,35 +65,35 @@ bool ReadLog::read_at_version_on_obj(int version, int read_objid, int &result_me
 	while (readlog >> log_ent) {
 		if (log_ent.last_read_memop == -1) {
 			// There have no previous read access.
-			prev_version[log_ent.objid] = log_ent.version;
+			last_read_version[log_ent.objid] = log_ent.version;
 			cout << "\tno previous read, log_ent: " <<  log_ent << endl;
 			continue;
 		}
 
-		int prev_ver = prev_version[log_ent.objid];
-		prev_version[log_ent.objid] = log_ent.version;
+		int last_ver = last_read_version[log_ent.objid];
+		last_read_version[log_ent.objid] = log_ent.version;
 
-		// if there's no previous "read log", prev_version[objid] defaults
-		// to 0, which is correct. int prev_ver = prev_version[log_ent.objid];
+		// if there's no previous "read log", last_read_version[objid] defaults
+		// to 0, which is correct.
 		if (read_objid == log_ent.objid) {
-			if (prev_ver == version) {
+			if (last_ver == version) {
 				result_memop = log_ent.last_read_memop;
 				cout << "\tFound read by log_ent: " << log_ent << endl;
 				return true;
-			} else if (prev_ver > version) {
-				version_memop[read_objid].push_back(VerMemop(prev_ver,
+			} else if (last_ver > version) {
+				version_memop[read_objid].push_back(VerMemop(last_ver,
 					log_ent.last_read_memop));
-				cout << "\tprev version " << prev_ver << " larger, adding log_ent: " << log_ent
+				cout << "\tprev version " << last_ver << " larger, adding log_ent: " << log_ent
 					 << " to deque" << endl;
 				return false;
 			}
 			// If prev_ver < version, we can just skip it.
 		} else {
 			cout << "\tadding to deque objid: " << log_ent.objid
-			     << " log_ent version: " << prev_ver
+			     << " log_ent version: " << last_ver
 			     << " read_memop: " << log_ent.last_read_memop
 			     << " processing log_ent: " << log_ent << endl;
-			version_memop[log_ent.objid].push_back(VerMemop(prev_ver,
+			version_memop[log_ent.objid].push_back(VerMemop(last_ver,
 				log_ent.last_read_memop));
 		}
 	}

@@ -24,7 +24,7 @@ struct VerMemop {
 };
 
 struct ReadLog {
-	std::vector<int> prev_version; // Each object has a previsou read version
+	std::vector<int> last_read_version; // Each object has a last read version
 	std::vector< std::deque<VerMemop> > version_memop;
 	std::ifstream readlog;
 
@@ -39,7 +39,6 @@ struct ReadLog {
 private:
 	// For debug
 	std::vector<int> prev_query_version;
-
 };
 
 #endif
