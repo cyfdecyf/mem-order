@@ -23,7 +23,7 @@ ostream& operator<<(ostream &os, ReadAtVerTestCase &rhs) {
 
 BOOST_AUTO_TEST_CASE(read_at_version_on_obj) {
 	/*
-		Test log contains log for the following read on two objects.
+		Test log contains log for the following read on objects.
 		Starting L in the read means this is in log.
 
 		objid     0          1         3
@@ -43,8 +43,7 @@ BOOST_AUTO_TEST_CASE(read_at_version_on_obj) {
 		                   L 14 @10
 		                   			 L 15 @5
 	*/
-	ReadLog *readlog_p = new ReadLog(3, "testdata/rec-rd-0");
-	ReadLog &readlog = *readlog_p;
+	ReadLog readlog(3, "testdata/rec-rd-0");
 
 	int result_memop = -1;
 	bool found = false;
@@ -72,20 +71,87 @@ BOOST_AUTO_TEST_CASE(read_at_version_on_obj) {
 		{5, 2, -1, false}, // The last read info is not dumped, so can't find this
 	};
 
+	ostringstream os;
 	for (unsigned int i = 0; i < sizeof(test_data)/sizeof(*test_data); i++) {
 		found = readlog.read_at_version_on_obj(test_data[i].version,
 			test_data[i].objid, result_memop);
-		ostringstream found_os;
-		found_os << "found = " << found << " test_data[" << i << "] = "
-		   << test_data[i];
-		BOOST_CHECK_MESSAGE(found == test_data[i].found, found_os.str());
 
-		ostringstream os;
+		os.str("");
+		os << "found = " << found << " test_data[" << i << "] = "
+		   << test_data[i];
+		BOOST_REQUIRE_MESSAGE(found == test_data[i].found, os.str());
+
+		if (! found)
+			continue;
+		os.str("");
 		os << "actual memop: " << result_memop
 		   << " test_data[" << i << "] = " << test_data[i];
 		BOOST_REQUIRE_MESSAGE(result_memop == test_data[i].result_memop, os.str());
 		result_memop = -1;
 	}
+}
 
-	delete readlog_p;
+struct NextWriteVersionTestCase {
+	int objid;
+	int expected_version;
+	int found;
+};
+
+ostream& operator<<(ostream &os, NextWriteVersionTestCase &rhs) {
+	os << "objid: " << rhs.objid
+	   << " expected_version: " << rhs.expected_version
+	   << " found: " << rhs.found;
+	return os;
+}
+
+BOOST_AUTO_TEST_CASE(next_write_version_on_obj) {
+	/*
+		Test log contains log for the following write on objects.
+		Starting L in the read means this is in log.
+
+		objid     0          1         2
+				  W 0@1
+				                       W 0@1
+									 L W 2@3
+				           L W 2@3
+				             W 3@4
+				L W 3@4
+				  W 4@5
+				  W 5@6
+				                       W 3@4
+				             W 4@5
+				           L W 7@8
+				                     L W 6@7
+				L W 7@8
+	*/
+	WriteLog writelog(3, "testdata/next-write-version");
+	NextWriteVersionTestCase test_data[] = {
+		{0, 3, true},
+		{2, 2, true},
+		{2, 6, true},
+		{2, -1, false},
+		{1, 2, true},
+		{0, 7, true},
+		{0, -1, false},
+		{1, 7, true},
+		{1, -1, false},
+	};
+
+	ostringstream os;
+	bool found;
+	int version;
+	for (unsigned int i = 0; i < sizeof(test_data) / sizeof(*test_data); i++) {
+		found = writelog.next_write_version(test_data[i].objid, version);
+
+		os.str("");
+		os << "Should found for test data: " << test_data[i];
+		BOOST_REQUIRE_MESSAGE(found == test_data[i].found, os.str());
+
+		if (! found)
+			continue;
+
+		os.str("");
+		os << "test data: " << test_data[i];
+		BOOST_REQUIRE_MESSAGE(version == test_data[i].expected_version, os.str());
+	}
 }

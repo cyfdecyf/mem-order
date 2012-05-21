@@ -18,5 +18,7 @@ int main(int argc, char const *argv[]) {
 	istringstream nobj_ss(argv[3]);
 	nobj_ss >> nobj;
 
+	Infer infer(tid, nthr, nobj, "log");
+
 	return 0;
 }

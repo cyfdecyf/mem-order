@@ -16,29 +16,68 @@ struct ReadLogEnt {
 std::istream& operator>>(std::istream &is, ReadLogEnt &rhs);
 std::ostream& operator<<(std::ostream &os, ReadLogEnt &rhs);
 
-struct VerMemop {
+struct WriteLogEnt {
+	int objid;
+	int version;
+};
+
+std::istream& operator>>(std::istream &is, WriteLogEnt &rhs);
+std::ostream& operator<<(std::ostream &os, WriteLogEnt &rhs);
+
+class VersionMemop {
+public:
 	int version;
 	int memop;
 
-	VerMemop(int ver, int mop) : version(ver), memop(mop) {}
+	VersionMemop(int ver, int mop) : version(ver), memop(mop) {}
 };
 
-struct ReadLog {
+class ReadLog {
 	std::vector<int> last_read_version; // Each object has a last read version
-	std::vector< std::deque<VerMemop> > version_memop;
+	std::vector< std::deque<VersionMemop> > version_memop;
 	std::ifstream readlog;
+	// For debug
+	std::vector<int> prev_query_version;
 
-	// ReadLog(int nobj, const std::string &logpath);
-	ReadLog(int nobj, const char *logpath);
+public:
+	ReadLog(int nobj, const char *logpath = NULL);
+
+	void openlog(const char *logpath);
 
 	// Search the last read memop that get value @version.
 	// This read memop is used to generate write-after-read log.	
 	// Return true if found.
 	bool read_at_version_on_obj(int version, int read_objid, int &result_memop);
+};
 
-private:
-	// For debug
-	std::vector<int> prev_query_version;
+struct VersionRange {
+	int low;
+	int high;
+};
+
+class WriteLog {
+	std::vector< std::deque<int> > last_write_version;
+	std::ifstream writelog;
+
+public:
+	WriteLog(int nobj, const char *logpath = NULL);
+
+	// Return false if no more write log.
+	bool next_write_version(int objid, int &version);
+
+	void openlog(const char *logpath);
+};
+
+class Infer {
+	int tid;
+	std::vector<WriteLog *> wlog;
+	std::vector<ReadLog *> rlog;
+	std::ofstream war_out;
+
+public:
+	Infer(int tid, int nthr, int nobj, const char *logdir);
+
+	void infer();
 };
 
 #endif
