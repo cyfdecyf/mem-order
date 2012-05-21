@@ -8,38 +8,35 @@ MEMOBJS = mem.o log.o
 TARG = dummy-acc record infer
 TEST = mem-test infer-test
 
+SRC = mem.c mem-main.c
+
 all: $(TARG) $(TEST)
 
 dummy-acc: $(MEMOBJS) mem-dummy.o mem-main.o
-	$(CC) $^ $(LDFLAGS) -o $@
+	$(call cc-link-command)
 
 mem-record.o: mem.h
 
 record: $(MEMOBJS) mem-record.o mem-main.o
-	$(CC) $^ $(LDFLAGS) -o $@
+	$(call cc-link-command)
 
 mem-test: mem-test.o mem.o
-	$(CC) $^ $(LDFLAGS) -o $@
+	$(call cc-link-command)
 
 # The following are for log processing
 
-infer.o: infer.hpp
-
 infer: infer.o infer-main.o
-	$(CXX) $^ -o $@
+	$(call cxx-link-command)
 
 infer-test: infer-test.o infer.o $(MEMOBJS)
-	$(CXX) $^ -o $@ -lboost_unit_test_framework-mt
+	$(call cxx-link-command, -lboost_unit_test_framework-mt)
 
 test: $(TEST)
 
 clean:
 	-rm -f *.o
+	-rm -rf .*.d
 	-rm -f $(TARG)
 	-rm $(TEST)
 
-%.c:
-%.cpp:
-%.h:
-%.hpp:
-%.o:
+include rules.make
