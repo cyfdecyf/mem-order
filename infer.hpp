@@ -62,10 +62,10 @@ class WriteLog {
 public:
 	WriteLog(int nobj, const char *logpath = NULL);
 
+	void openlog(const char *logpath);
+
 	// Return false if no more write log.
 	bool next_write_version(int objid, int &version);
-
-	void openlog(const char *logpath);
 };
 
 class Infer {
@@ -73,6 +73,13 @@ class Infer {
 	std::vector<WriteLog *> wlog;
 	std::vector<ReadLog *> rlog;
 	std::ofstream war_out;
+
+	// Find the last "follwing write" after the start version.
+	// "following write" are writes that happen before other thread's write
+	// to this object.
+	// Return the version of the last following writes. If nothing found,
+	// return start_version.
+	int following_write_version(int start_version);
 
 public:
 	Infer(int tid, int nthr, int nobj, const char *logdir);

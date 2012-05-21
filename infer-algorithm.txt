@@ -7,19 +7,22 @@ the replay logic, we only use the above log form.
 
 Process write log:
   while (logent = next write log ent)
-    Take write-after-read log for logent.version
+    // Find all following writes by this thread to the logged object.
+    // We get a version change region, no other thread writes the object
+    // at these version.
+    Find following version change range [Va, Vb]
+
     // objid is actually logent.objid
-    if last_logent[objid] != null
-      we get a version change region [Va + 1, Vb - 1],
-        Va = last_logent[objid].version,
-        Vb = logent.version
-      for each version in version range
-          search write log of other threads to see if this is done by others
-          if other thread does this write
-            break // all the following write must be done by other thread
-          else
-            Take write-after-read log
-    last_logent[objid] = logent
+    for each version in version range [Va, Vb]
+      Take write-after-read log
+
+Find following version change range
+  Params: version
+  Output: biggest write version that's not modified by other thread
+
+  for each other threads' write log
+    search for smallest next write version that's larger than version
+  return smallest write version by other threads - 1
 
 Take write-after-read log:
   Params: version before write

@@ -178,5 +178,9 @@ Infer::Infer(int tid, int nthr, int nobj, const char *logdir) :
 	os.str("");
 }
 
+int Infer::following_write_version(int start_version) {
+	return start_version;
+}
+
 void Infer::infer() {
 }
