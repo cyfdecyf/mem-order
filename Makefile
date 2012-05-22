@@ -5,8 +5,8 @@ CXXFLAGS = -g -O2 -Wall
 
 LDFLAGS = -lpthread
 MEMOBJS = mem.o log.o
-TARG = dummy-acc record infer
-TEST = mem-test infer-test
+TARG = dummy-acc record
+TEST = mem-test
 
 SRC = mem.c mem-main.c
 
@@ -22,14 +22,6 @@ record: $(MEMOBJS) mem-record.o mem-main.o
 
 mem-test: mem-test.o mem.o
 	$(call cc-link-command)
-
-# The following are for log processing
-
-infer: infer.o infer-main.o
-	$(call cxx-link-command)
-
-infer-test: infer-test.o infer.o $(MEMOBJS)
-	$(call cxx-link-command, -lboost_unit_test_framework-mt)
 
 test: $(TEST)
 
