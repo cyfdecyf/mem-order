@@ -23,7 +23,7 @@ ostream& operator<<(ostream &os, ReadLogEnt &rhs) {
 }
 
 istream& operator>>(istream &is, WriteLogEnt &rhs) {
-	is >> rhs.objid >>  rhs.version;
+	is >> rhs.objid >> rhs.version;
 	return is;
 }
 
@@ -33,7 +33,7 @@ ostream& operator<<(ostream &os, WriteLogEnt &rhs) {
 	return os;
 }
 
-ReadLog::ReadLog(int nobj, const char *logpath) :
+ReadLog::ReadLog(objid_t nobj, const char *logpath) :
 		last_read_version(nobj), version_memop(nobj), prev_query_version(nobj, -1) {
 	if (logpath)
 		openlog(logpath);	
@@ -47,7 +47,8 @@ void ReadLog::openlog(const char *logpath) {
 	}
 }
 
-bool ReadLog::read_at_version_on_obj(int version, int read_objid, int &result_memop) {
+bool ReadLog::read_at_version_on_obj(version_t version, objid_t read_objid,
+		version_t &result_memop) {
 	// Because read and write can only get version that's larger then
 	// previous one, the version parameter given to this function
 	// should always increase
@@ -85,7 +86,7 @@ bool ReadLog::read_at_version_on_obj(int version, int read_objid, int &result_me
 			continue;
 		}
 
-		int last_ver = last_read_version[log_ent.objid];
+		version_t last_ver = last_read_version[log_ent.objid];
 		last_read_version[log_ent.objid] = log_ent.version;
 
 		// if there's no previous "read log", last_read_version[objid] defaults
@@ -115,7 +116,7 @@ bool ReadLog::read_at_version_on_obj(int version, int read_objid, int &result_me
 	return false;
 }
 
-WriteLog::WriteLog(int nobj, const char *logpath) : last_write_version(nobj) {
+WriteLog::WriteLog(objid_t nobj, const char *logpath) : last_write_version(nobj) {
 	if (logpath)
 		openlog(logpath);
 }
@@ -156,29 +157,63 @@ bool WriteLog::next_write_version(int objid, int &version) {
 	return false;
 }
 
-Infer::Infer(int tid, int nthr, int nobj, const char *logdir) :
-		wlog(nobj), rlog(nobj) {
+Infer::Infer(int tid, int nthr, objid_t nobj, const char *logdir) :
+		tid(tid), nthr(nthr), wlog(nobj), rlog(nobj),
+		first_write_version(nobj), first_write_queue_filled(nobj, false) {
 	ostringstream os;
 
 	for (int i = 0; i < nthr; i++) {
-		os << logdir << "/" << RDLOG_PATTERN << i;
-		rlog[i] = new ReadLog(nobj, os.str().c_str());
 		os.str("");
-
 		os << logdir << "/" << WRLOG_PATTERN << i;
 		wlog[i] = new WriteLog(nobj, os.str().c_str());
+
+		// read log is not need for this thread itself.
+		if (i == tid)
+			continue;
+
 		os.str("");
+		os << logdir << "/" << RDLOG_PATTERN << i;
+		rlog[i] = new ReadLog(nobj, os.str().c_str());
 	}
 
+	os.str("");
 	os << logdir << "/" << WARLOG_PATTERN << tid;
 	war_out.open(os.str().c_str());
 	if (! war_out) {
 		cerr << "Cant't open write-after-read log" << os.str() << endl;
 	}
-	os.str("");
 }
 
-int Infer::following_write_version(int start_version) {
+void Infer::init_first_write_queue(objid_t objid, version_queue &first_write) {
+	// Read all other threads' next write version, add to the queue
+	version_t version;
+	for (int i = 0; i < nthr; i++) {
+		if (i == tid)
+			continue;
+		bool found = wlog[i]->next_write_version(objid, version);
+		if (found) {
+			first_write.push(TidVersion(i, version));
+		}
+	}
+}
+
+int Infer::following_write_version(objid_t objid, version_t start_version) {
+	// Search for the smallest version written by other threads
+	version_queue &first_write = first_write_version[objid];
+
+	if (! first_write_queue_filled[objid]) {
+		init_first_write_queue(objid, first_write);
+	}
+
+	if (first_write.empty()) {
+		// No more write in other threads
+	}
+	TidVersion following_version = first_write.top();
+
+	// XXX Naruil remindes me this is a silly and complex way to process the
+	// log. Why did I giveup the easy way that I almost finished using Go?
+	// Shit.
+
 	return start_version;
 }
 
