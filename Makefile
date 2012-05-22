@@ -23,8 +23,8 @@ record: $(MEMOBJS) mem-record.o mem-main.o
 mem-test: mem-test.o mem.o
 	$(call cc-link-command)
 
-infer/infer: infer/infer.go
-	(cd infer; go build)
+infer/infer: infer/infer.c
+	$(call cc-link-command)
 	cp $@ log/
 
 test: $(TEST)
