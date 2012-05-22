@@ -48,8 +48,8 @@ func NewReadLog(tid, nobj int, readlogpath, warlogpath string) (log *ReadLog) {
 func (log *ReadLog) inferWriteAfterRead(ch chan int) {
 	fmt.Println("Inferring write-after-read order", log.tid)
 
+	var read_memop, objid, version, last_read_memop int
 	for {
-		var read_memop, objid, version, last_read_memop int
 		_, err := fmt.Fscanln(log.readlog, &read_memop, &objid, &version,
 			&last_read_memop)
 		if err == io.EOF {
@@ -128,11 +128,13 @@ func main() {
 		log := NewReadLog(i, nobjs,
 			logFilePath(logDir, RDLOG_PATTERN, i),
 			logFilePath(logDir, PLLOG_PATTERN, i))
-		go log.inferWriteAfterRead(wait_infer)
+		log.inferWriteAfterRead(wait_infer)
 	}
 
 	// Wait all goroutines to finish
-	for i := 0; i < nthr; i++ {
-		<-wait_infer
-	}
+	/*
+	 *for i := 0; i < nthr; i++ {
+	 *    <-wait_infer
+	 *}
+	 */
 }
