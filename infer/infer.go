@@ -61,7 +61,7 @@ func (log *ReadLog) inferWriteAfterRead(ch chan int) {
 			log.last_read_version[objid] = version
 			continue
 		}
-		fmt.Fprintf(log.warlog, "%d %d %d", log.tid, last_read_memop,
+		fmt.Fprintf(log.warlog, "%d %d %d\n", log.tid, last_read_memop,
 			log.last_read_version[objid])
 		log.last_read_version[objid] = version
 	}
@@ -83,7 +83,7 @@ func fileExists(path string) (bool, error) {
 
 func checkLogFile(logDir string, nthr int) {
 	for i := 0; i < nthr; i++ {
-		logPath := logFilePath(logDir, PLLOG_PATTERN, i)
+		logPath := logFilePath(logDir, RDLOG_PATTERN, i)
 		if exist, _ := fileExists(logPath); !exist {
 			fmt.Println("Log file", logPath, "does not exits")
 			os.Exit(1)
@@ -96,7 +96,7 @@ func logFilePath(dir, pattern string, thrid int) string {
 }
 
 func numberOfThreads(dir string) int {
-	mat, err := filepath.Glob(fmt.Sprintf("%s/%s-*", RDLOG_PATTERN, dir))
+	mat, err := filepath.Glob(fmt.Sprintf("%s/%s-*", dir, RDLOG_PATTERN))
 	if err != nil {
 		fmt.Println("Can't find memory order file:", err)
 		os.Exit(1)

@@ -5,7 +5,7 @@ CXXFLAGS = -g -O2 -Wall
 
 LDFLAGS = -lpthread
 MEMOBJS = mem.o log.o
-TARG = dummy-acc record
+TARG = dummy-acc record infer/infer
 TEST = mem-test
 
 SRC = mem.c mem-main.c
@@ -22,6 +22,10 @@ record: $(MEMOBJS) mem-record.o mem-main.o
 
 mem-test: mem-test.o mem.o
 	$(call cc-link-command)
+
+infer/infer: infer/infer.go
+	(cd infer; go build)
+	cp $@ log/
 
 test: $(TEST)
 
