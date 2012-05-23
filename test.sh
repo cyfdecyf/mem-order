@@ -1,5 +1,11 @@
 #!/bin/bash
 
+COLOR='\e[1;32m'
+
+function cecho() {
+    echo -e "$COLOR$*\e[0m"
+}
+
 function process_log() {
     let maxid=$nthr-1
     for i in `seq 0 $maxid`; do
@@ -17,9 +23,14 @@ fi
 nthr=$1
 nobj=$2
 
-echo "$nthr threads, $nobj shared objects"
-
 rm -f log/rec* log/war*
-./record $nthr
+cecho "Start record with $nthr threads, $nobj shared objects"
+./record $nthr > result-record
 
+cecho Log processing
 (cd log; process_log)
+
+cecho Start replay
+./play $nthr > result-play
+
+diff result-record result-play

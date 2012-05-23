@@ -7,7 +7,7 @@
 
 // Shared object size configured to 8 to ease output
 #define OBJ_SIZE 8
-#define NOBJS 20
+#define NOBJS 2
 
 // objs are aligned to OBJ_SIZE
 extern int64_t *objs;

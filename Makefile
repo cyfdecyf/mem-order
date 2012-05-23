@@ -5,7 +5,7 @@ CXXFLAGS = -g -O3 -Wall
 
 LDFLAGS = -lpthread
 MEMOBJS = mem.o log.o
-TARG = dummy-acc record infer/infer
+TARG = dummy-acc record play infer/infer
 TEST = mem-test
 
 SRC = mem.c mem-main.c
@@ -18,6 +18,9 @@ dummy-acc: $(MEMOBJS) mem-dummy.o mem-main.o
 mem-record.o: mem.h
 
 record: $(MEMOBJS) mem-record.o mem-main.o
+	$(call cc-link-command)
+
+play: $(MEMOBJS) mem-replay.o mem-main.o
 	$(call cc-link-command)
 
 mem-test: mem-test.o mem.o
