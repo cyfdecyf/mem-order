@@ -13,14 +13,11 @@ typedef struct {
 objinfo_t *objinfo;
 
 typedef struct {
-    int read_version;
-    int write_version;
+    int version;
     int read_memop;
 } last_objinfo_t;
 
-// Last read version for each object
 DEFINE_TLS_GLOBAL(last_objinfo_t *, last_info);
-// Memory operation count, including both read and write
 DEFINE_TLS_GLOBAL(int, read_memop);
 DEFINE_TLS_GLOBAL(FILE *, read_log);
 DEFINE_TLS_GLOBAL(FILE *, write_log);
@@ -96,9 +93,9 @@ repeat:
     // If version changed since last read, there must be writes to this object.
     // During replay, this read should wait the object reach to the current
     // version.
-    if (TLS(last_info)[objid].read_version != version) {
+    if (TLS(last_info)[objid].version != version) {
         log_read(objid, version);
-        TLS(last_info)[objid].read_version = version;
+        TLS(last_info)[objid].version = version;
     }
 
     // Not every read will take log. To get precise dependency, maintain the
@@ -129,11 +126,9 @@ void mem_write(int32_t *addr, int32_t val) {
 
     spin_unlock(&info->write_lock);
 
-    if (TLS(last_info)[objid].write_version != version) {
+    if (TLS(last_info)[objid].version != version) {
         log_write(objid, version);
     }
 
-    int new_version = version + 2;
-    TLS(last_info)[objid].read_version = new_version;
-    TLS(last_info)[objid].write_version = new_version;
+    TLS(last_info)[objid].version = version + 2;
 }
