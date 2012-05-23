@@ -1,0 +1,13 @@
+{
+	"folders":
+	[
+		{
+			"file_exclude_patterns":
+			[
+				".*.d",
+				"*sublime-workspace"
+			],
+			"path": "/Users/alex/programming/mem-order"
+		}
+	]
+}
