@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"log"
+	"runtime/pprof"
 )
 
 // This version is almost the same with the C code. But still very slow.
@@ -41,6 +43,12 @@ func main() {
 
 	last_read_version := make([]int, nobj)
 
+	f, err := os.Create("prof.infer")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
 	var read_memop, objid, version, last_read_memop int
 	for {
 		_, err := fmt.Fscanln(rlog, &read_memop, &objid, &version,
