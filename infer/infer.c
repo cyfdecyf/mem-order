@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/*#define CAREFUL*/
-
 int main(int argc, char const *argv[]) {
     if (argc != 4) {
         printf("Usage: infer <tid> <nobj> <logfile>\n");
@@ -32,19 +30,8 @@ int main(int argc, char const *argv[]) {
     int *last_read_version = malloc(nobj * sizeof(*last_read_version));
 
     int read_memop, objid, version, last_read_memop;
-    while (1) {
-#ifdef CAREFUL
-        int n = fscanf(rlog, "%d %d %d %d", &read_memop, &objid, &version, &last_read_memop);
-#else
-        fscanf(rlog, "%d %d %d %d", &read_memop, &objid, &version, &last_read_memop);
-#endif
-        if (feof(rlog))
-            break;
-#ifdef CAREFUL
-        if (n != 4) {
-            printf("Error in log, processed %d log\n", cnt);
-        }
-#endif
+    while (fscanf(rlog, "%d %d %d %d\n", &read_memop, &objid, &version,
+        &last_read_memop) == 4) {
 
         // No previous read, no dependency needed
         if (last_read_memop == -1) {
@@ -52,9 +39,15 @@ int main(int argc, char const *argv[]) {
             continue;
         }
 
-        fprintf(warlog, "%d %d %d\n", tid, last_read_memop, last_read_version[objid]);
+        fprintf(warlog, "%d %d %d\n", last_read_memop, last_read_version[objid], tid);
         last_read_version[objid] = version;
     }
+    if (! feof(rlog)) {
+        printf("Error in log\n");
+    }
+
+    fclose(rlog);
+    fclose(warlog);
 
     return 0;
 }
