@@ -39,7 +39,7 @@ int main(int argc, char const *argv[]) {
             continue;
         }
 
-        fprintf(warlog, "%d %d %d\n", last_read_memop, last_read_version[objid], tid);
+        fprintf(warlog, "%d %d %d %d\n", objid, last_read_version[objid], last_read_memop, tid);
         last_read_version[objid] = version;
     }
     if (! feof(rlog)) {

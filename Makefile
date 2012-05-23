@@ -1,7 +1,7 @@
 CC = gcc
-CFLAGS = -std=gnu99 -g -O2 -Wall
+CFLAGS = -std=gnu99 -g -O3 -Wall
 CXX = g++
-CXXFLAGS = -g -O2 -Wall
+CXXFLAGS = -g -O3 -Wall
 
 LDFLAGS = -lpthread
 MEMOBJS = mem.o log.o

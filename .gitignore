@@ -1,3 +1,9 @@
 log/rec*
 log/pla*
+log/war*
 .*.d
+*/infer
+record
+mem-test
+*sublime-workspace
+dummy-acc
