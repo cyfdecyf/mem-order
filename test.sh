@@ -23,14 +23,21 @@ fi
 nthr=$1
 
 rm -f log/rec* log/war*
-cecho "Start record with $nthr threads\n"
-./record $nthr | tee > result-record
-echo
+cecho "Record with $nthr threads   Result:========"
+./record $nthr | tee result-record
+cecho "End result==============================="
 
-cecho Log processing
+cecho "Log processing ..."
 (cd log; process_log)
 
-cecho "Start replay\n"
-./play $nthr | tee > result-play
+cecho "Replay with $nthr threads    Result:======="
+./play $nthr | tee result-play
+cecho "End result==============================="
 
 diff result-record result-play
+
+if [ $? == 0 ]; then
+	cecho "Replay result correct"
+else
+    echo -e "\e[1;31mReplay result wrong\e[0m"
+fi

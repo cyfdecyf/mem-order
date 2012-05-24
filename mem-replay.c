@@ -165,10 +165,15 @@ int32_t mem_read(int32_t *addr) {
         // objid in log should have no use
         assert(objid == TLS(read_aw).objid);
 
+        fprintf(stderr, "THR %d READ wait obj %d reach @%d\n", tid, objid, TLS(write_aw).version);
         while (obj_version[objid] < TLS(read_aw).version) {
             cpu_relax();
         }
+        fprintf(stderr, "wait done\n");
 
+        if (obj_version[objid] != TLS(read_aw).version) {
+            fprintf(stderr, "obj_version[%d] = %d, read_aw.version = %d\n", objid, obj_version[objid], TLS(read_aw).version);
+        }
         assert(obj_version[objid] == TLS(read_aw).version);
         next_read_aw_log();
     }
@@ -188,19 +193,24 @@ void mem_write(int32_t *addr, int32_t val) {
         // objid in log should have no use
         assert(objid == TLS(write_aw).objid);
 
+        fprintf(stderr, "THR %d WRITE wait obj %d reach @%d\n", tid, objid, TLS(write_aw).version);
         while (obj_version[objid] < TLS(write_aw).version) {
             cpu_relax();
         }
+        fprintf(stderr, "wait done\n");
 
         assert(obj_version[objid] == TLS(write_aw).version);
+        next_write_aw_log();
     }
 
     // Next wait read that get this version.
     WarLog *log;
     while ((log = wait_read(objid, obj_version[objid])) != NULL) {
+        fprintf(stderr, "THR %d wait THR %d do %dth read on obj %d\n", tid, log->tid, log->read_memop, objid);
         while (read_memop_tls[log->tid] <= log->read_memop) {
             cpu_relax();
         }
+        fprintf(stderr, "wait done\n");
     }
 
     *addr = val;
