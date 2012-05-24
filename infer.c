@@ -1,17 +1,17 @@
+#include "mem.h"
 #include <stdio.h>
 #include <stdlib.h>
 
 int main(int argc, char const *argv[]) {
-    if (argc != 4) {
-        printf("Usage: infer <tid> <nobj> <logfile>\n");
+    if (argc != 3) {
+        printf("Usage: infer <tid> <logfile>\n");
         exit(1);
     }
 
     int tid = atoi(argv[1]);
-    int nobj = atoi(argv[2]);
 
     // Open read log
-    FILE *rlog = fopen(argv[3], "r");
+    FILE *rlog = fopen(argv[2], "r");
     if (!rlog) {
         printf("Can't open read log file\n");
         exit(1);
@@ -27,7 +27,7 @@ int main(int argc, char const *argv[]) {
         exit(1);
     }
 
-    int *last_read_version = malloc(nobj * sizeof(*last_read_version));
+    int *last_read_version = malloc(NOBJS * sizeof(*last_read_version));
 
     int read_memop, objid, version, last_read_memop;
     while (fscanf(rlog, "%d %d %d %d\n", &read_memop, &objid, &version,
