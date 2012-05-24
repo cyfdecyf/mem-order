@@ -26,19 +26,20 @@ typedef struct {
     int objid;
     int version;
 } RawLog;
-DEFINE_TLS_GLOBAL(RawLog, raw);
-DEFINE_TLS_GLOBAL(FILE *, raw_log);
+DEFINE_TLS_GLOBAL(RawLog, read_aw);
+DEFINE_TLS_GLOBAL(FILE *, read_aw_log);
+DEFINE_TLS_GLOBAL(char, no_more_read_aw);
 
-static inline int read_raw_log(FILE *log, RawLog *ent) {
+static inline void next_read_aw_log() {
+    TLS_tid();
+    RawLog *ent = &TLS(read_aw);
+
     int last_read; // Not used in replay
-    (void)last_read;
-    if (fscanf(log, "%d %d %d %d", &ent->read_memop,
+    if (fscanf(TLS(read_aw_log), "%d %d %d %d", &ent->read_memop,
                 &ent->objid, &ent->version, &last_read) != 4) {
-        TLS_tid();
         fprintf(stderr, "No more RAW log for thread %d\n", tid);
-        return 0;
+        TLS(no_more_read_aw) = 1;
     }
-    return 1;
 }
 
 typedef struct {
@@ -46,16 +47,17 @@ typedef struct {
     int objid;
     int version;
 } WawLog;
-DEFINE_TLS_GLOBAL(WawLog, waw);
-DEFINE_TLS_GLOBAL(FILE *, waw_log);
+DEFINE_TLS_GLOBAL(WawLog, write_aw);
+DEFINE_TLS_GLOBAL(FILE *, write_aw_log);
+DEFINE_TLS_GLOBAL(char, no_more_write_aw);
 
-static inline int read_waw_log(FILE *log, WawLog *ent) {
-    if (fscanf(log, "%d %d %d", &ent->write_memop, &ent->objid, &ent->version) != 2) {
-        TLS_tid();
+static inline void next_write_aw_log() {
+    TLS_tid();
+    WawLog *ent = &TLS(write_aw);
+    if (fscanf(TLS(write_aw_log), "%d %d %d", &ent->write_memop, &ent->objid, &ent->version) != 2) {
         fprintf(stderr, "No more WAW log for thread %d\n", tid);
-        return 0;
+        TLS(no_more_write_aw) = 1;
     }
-    return 1;
 }
 
 typedef struct {
@@ -129,10 +131,12 @@ DEFINE_TLS_GLOBAL(int, write_memop);
 
 void mem_init(int nthr) {
     load_war_log();
-    ALLOC_TLS_GLOBAL(nthr, waw_log);
-    ALLOC_TLS_GLOBAL(nthr, waw);
-    ALLOC_TLS_GLOBAL(nthr, raw_log);
-    ALLOC_TLS_GLOBAL(nthr, raw);
+    ALLOC_TLS_GLOBAL(nthr, write_aw_log);
+    ALLOC_TLS_GLOBAL(nthr, write_aw);
+    ALLOC_TLS_GLOBAL(nthr, no_more_write_aw);
+    ALLOC_TLS_GLOBAL(nthr, read_aw_log);
+    ALLOC_TLS_GLOBAL(nthr, read_aw);
+    ALLOC_TLS_GLOBAL(nthr, no_more_read_aw);
     ALLOC_TLS_GLOBAL(nthr, read_memop);
     ALLOC_TLS_GLOBAL(nthr, write_memop);
 
@@ -143,29 +147,29 @@ void mem_init_thr(int tid) {
     // Must set tid before using the tid_key
     pthread_setspecific(tid_key, (void *)(long)tid);
 
-    TLS(waw_log) = open_log("log/rec-wr", tid);
-    TLS(raw_log) = open_log("log/rec-rd", tid);
+    TLS(write_aw_log) = open_log("log/rec-wr", tid);
+    TLS(read_aw_log) = open_log("log/rec-rd", tid);
 
-    read_raw_log(TLS(raw_log), &TLS(raw));
-    read_waw_log(TLS(waw_log), &TLS(waw));
+    next_read_aw_log();
+    next_write_aw_log();
 }
 
 int32_t mem_read(int32_t *addr) {
-    int val;
     TLS_tid();
+    int val;
     // First wait write
     int objid = obj_id(addr);
 
-    if (TLS(read_memop) == TLS(raw).read_memop) {
+    if (!TLS(no_more_read_aw) && TLS(read_memop) == TLS(read_aw).read_memop) {
         // objid in log should have no use
-        assert(objid == TLS(raw).objid);
+        assert(objid == TLS(read_aw).objid);
 
-        while (obj_version[objid] < TLS(raw).version) {
+        while (obj_version[objid] < TLS(read_aw).version) {
             cpu_relax();
         }
 
-        assert(obj_version[objid] == TLS(raw).version);
-        read_raw_log(TLS(raw_log), &TLS(raw));
+        assert(obj_version[objid] == TLS(read_aw).version);
+        next_read_aw_log();
     }
 
     val = *addr;
@@ -179,16 +183,15 @@ void mem_write(int32_t *addr, int32_t val) {
     int objid = obj_id(addr);
 
     // First wait write
-    if (TLS(write_memop) == TLS(waw).write_memop) {
+    if (!TLS(no_more_write_aw) && TLS(write_memop) == TLS(write_aw).write_memop) {
         // objid in log should have no use
-        assert(objid == TLS(waw).objid);
+        assert(objid == TLS(write_aw).objid);
 
-        while (obj_version[objid] < TLS(waw).version) {
+        while (obj_version[objid] < TLS(write_aw).version) {
             cpu_relax();
         }
 
-        assert(obj_version[objid] == TLS(waw).version);
-        read_waw_log(TLS(waw_log), &TLS(waw));
+        assert(obj_version[objid] == TLS(write_aw).version);
     }
 
     // Next wait read that get this version.
