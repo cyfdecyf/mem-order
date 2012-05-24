@@ -49,13 +49,13 @@ void mem_init_thr(int tid) {
 
 static inline void log_read(int objid, int version) {
     TLS_tid();
-    fprintf(TLS(read_log), "%d %d %d %d\n", TLS(read_memop), objid, version,
+    fprintf(TLS(read_log), "%d %d %d %d\n", objid, version, TLS(read_memop), 
             TLS(last_info)[objid].read_memop);
 }
 
 static inline void log_write(int objid, int version) {
     TLS_tid();
-    fprintf(TLS(write_log), "%d %d %d\n", TLS(write_memop), objid, version);
+    fprintf(TLS(write_log), "%d %d %d\n", objid, version, TLS(write_memop));
 }
 
 #define likely(x) __builtin_expect(!!(x), 1)

@@ -30,7 +30,7 @@ int main(int argc, char const *argv[]) {
     int *last_read_version = malloc(NOBJS * sizeof(*last_read_version));
 
     int read_memop, objid, version, last_read_memop;
-    while (fscanf(rlog, "%d %d %d %d\n", &read_memop, &objid, &version,
+    while (fscanf(rlog, "%d %d %d %d\n", &objid, &version, &read_memop,
         &last_read_memop) == 4) {
 
         // No previous read, no dependency needed

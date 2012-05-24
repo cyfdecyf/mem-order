@@ -14,8 +14,8 @@ typedef struct WarLog {
 } WarLog;
 
 static inline int read_war_log(FILE *log, WarLog *ent, int *objid) {
-    if (fscanf(log, "%d %d %d %d", objid,
-        &ent->version, &ent->read_memop, &ent->tid) != 4) {
+    if (fscanf(log, "%d %d %d %d", objid, &ent->version, &ent->read_memop,
+            &ent->tid) != 4) {
         return 0;
     }
     return 1;
@@ -35,8 +35,8 @@ static inline void next_read_aw_log() {
     RawLog *ent = &TLS(read_aw);
 
     int last_read; // Not used in replay
-    if (fscanf(TLS(read_aw_log), "%d %d %d %d", &ent->read_memop,
-                &ent->objid, &ent->version, &last_read) != 4) {
+    if (fscanf(TLS(read_aw_log), "%d %d %d %d", &ent->objid, &ent->version,
+            &ent->read_memop, &last_read) != 4) {
         fprintf(stderr, "No more RAW log for thread %d\n", tid);
         TLS(no_more_read_aw) = 1;
     }
@@ -54,7 +54,8 @@ DEFINE_TLS_GLOBAL(char, no_more_write_aw);
 static inline void next_write_aw_log() {
     TLS_tid();
     WawLog *ent = &TLS(write_aw);
-    if (fscanf(TLS(write_aw_log), "%d %d %d", &ent->write_memop, &ent->objid, &ent->version) != 2) {
+    if (fscanf(TLS(write_aw_log), "%d %d %d", &ent->objid, &ent->version,
+            &ent->write_memop) != 2) {
         fprintf(stderr, "No more WAW log for thread %d\n", tid);
         TLS(no_more_write_aw) = 1;
     }
