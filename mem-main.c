@@ -3,14 +3,15 @@
 #include <stdio.h>
 #include <pthread.h>
 
-#define NITER 30
+#define NITER 3
 
 static int nthr;
-static volatile int32_t wflag;
+static volatile int start_flag;
+static volatile int finish_flag;
 
-static void wait_other_thread() {
-    __sync_fetch_and_add(&wflag, 1);
-    while (wflag != nthr)
+static void sync_thread(volatile int *flag) {
+    __sync_fetch_and_add(flag, 1);
+    while (*flag != nthr)
         asm volatile ("pause");
 }
 
@@ -18,7 +19,7 @@ static void *access_thr_fn(void *dummyid) {
     int tid = (int)(long)dummyid;
     mem_init_thr(tid);
 
-    wait_other_thread();
+    sync_thread(&start_flag);
 
     for (int i = 0; i < NITER; i++) {
         for (int j = 0; j < NOBJS; j++) {
@@ -30,6 +31,8 @@ static void *access_thr_fn(void *dummyid) {
             mem_write(addr, val + 1);
         }
     }
+
+    sync_thread(&finish_flag);
     mem_finish_thr();
     return NULL;
 }

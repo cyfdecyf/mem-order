@@ -138,9 +138,12 @@ void mem_write(int32_t *addr, int32_t val) {
 
 void mem_finish_thr() {
     TLS_tid();
-    // Dump last read info for each object.
+    // Must be called after all writes are done.
+    // For each object, dump last read info if it's written by other thread.
     // Used to generate write-after-read log for the last read log.
     for (int i = 0; i < NOBJS; i++) {
-        log_read(i, TLS(last_info)[i].version);
+        if (TLS(last_info)[i].version != objinfo[i].version) {
+            log_read(i, TLS(last_info)[i].version);
+        }
     }
 }
