@@ -25,11 +25,12 @@ static void *access_thr_fn(void *dummyid) {
             // Access a 32bit int inside a 64bit int
             int32_t *addr = (int32_t *)&objs[j];
             // Different threads access different part of the shared object
-            addr += tid & 1;
+            // addr += tid & 1;
             int32_t val = mem_read(addr);
             mem_write(addr, val + 1);
         }
     }
+    mem_finish_thr();
     return NULL;
 }
 

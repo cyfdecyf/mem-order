@@ -20,6 +20,7 @@ static inline int obj_id(void *addr) {
 // data storage is initialized.
 void mem_init(int nthr);
 void mem_init_thr(int tid);
+void mem_finish_thr();
 
 int32_t mem_read(int32_t *addr);
 void    mem_write(int32_t *addr, int32_t val);

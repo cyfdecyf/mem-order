@@ -135,3 +135,12 @@ void mem_write(int32_t *addr, int32_t val) {
     TLS(last_info)[objid].version = version + 2;
     TLS(write_memop)++;
 }
+
+void mem_finish_thr() {
+    TLS_tid();
+    // Dump last read info for each object.
+    // Used to generate write-after-read log for the last read log.
+    for (int i = 0; i < NOBJS; i++) {
+        log_read(i, TLS(last_info)[i].version);
+    }
+}

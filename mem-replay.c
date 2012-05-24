@@ -206,3 +206,5 @@ void mem_write(int32_t *addr, int32_t val) {
     obj_version[objid] += 2;
     TLS(write_memop)++;
 }
+
+void mem_finish_thr() {}

@@ -5,7 +5,7 @@ CXXFLAGS = -g -O3 -Wall
 
 LDFLAGS = -lpthread
 MEMOBJS = mem.o log.o
-TARG = dummy-acc record play infer
+TARG = record play infer
 TEST = mem-test
 
 SRC = mem.c mem-main.c
