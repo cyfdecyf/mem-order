@@ -114,11 +114,13 @@ static void load_war_log() {
 }
 
 WarLog *wait_read(int objid, int version) {
+    TLS_tid();
     int i;
     WarLog *log = war[objid].log;
     for (i = war[objid].n; version < log[i].version && i <= war[objid].size; ++i) {
     }
-    if (i <= war[objid].size && version == log[i].version) {
+    // Ignore log that waiting self.
+    if (i <= war[objid].size && log[i].tid != tid && version == log[i].version) {
         // Update next used log.
         // Only one write thread will execute this. So no lock is needed.
         war[objid].n = i + 1;
@@ -165,7 +167,8 @@ int32_t mem_read(int32_t *addr) {
         // objid in log should have no use
         assert(objid == TLS(read_aw).objid);
 
-        fprintf(stderr, "THR %d READ wait obj %d reach @%d\n", tid, objid, TLS(write_aw).version);
+        fprintf(stderr, "RD-A-WT T%d %dRD wait obj %d @%d->@%d\n", tid, TLS(read_memop), 
+            objid, obj_version[objid], TLS(read_aw).version);
         while (obj_version[objid] < TLS(read_aw).version) {
             cpu_relax();
         }
@@ -193,7 +196,8 @@ void mem_write(int32_t *addr, int32_t val) {
         // objid in log should have no use
         assert(objid == TLS(write_aw).objid);
 
-        fprintf(stderr, "THR %d WRITE wait obj %d reach @%d\n", tid, objid, TLS(write_aw).version);
+        fprintf(stderr, "WT-A-WT T%d %dWT wait obj %d @%d->@%d\n", tid, TLS(write_memop),
+            objid, obj_version[objid], TLS(write_aw).version);
         while (obj_version[objid] < TLS(write_aw).version) {
             cpu_relax();
         }
@@ -206,7 +210,8 @@ void mem_write(int32_t *addr, int32_t val) {
     // Next wait read that get this version.
     WarLog *log;
     while ((log = wait_read(objid, obj_version[objid])) != NULL) {
-        fprintf(stderr, "THR %d wait THR %d do %dth read on obj %d\n", tid, log->tid, log->read_memop, objid);
+        fprintf(stderr, "WT-A-RD T%d %dWT wait T%d %dRD on obj %d\n", tid, TLS(write_memop),
+            log->tid, log->read_memop, objid);
         while (read_memop_tls[log->tid] <= log->read_memop) {
             cpu_relax();
         }

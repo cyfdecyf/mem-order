@@ -142,6 +142,7 @@ void mem_finish_thr() {
     // For each object, dump last read info if it's written by other thread.
     // Used to generate write-after-read log for the last read log.
     for (int i = 0; i < NOBJS; i++) {
+        fprintf(stderr, "T%d last RD obj %d @%d\n", tid, i, TLS(last_info)[i].version);
         if (TLS(last_info)[i].version != objinfo[i].version) {
             log_read(i, TLS(last_info)[i].version);
         }
