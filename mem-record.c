@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define DEBUG
+
 typedef struct {
     /* Version is like write counter */
     int version;
@@ -14,6 +16,8 @@ objinfo_t *objinfo;
 
 typedef struct {
     int version;
+    // This is only used for last read, find way to eliminate this
+    int read_version;
     int read_memop;
 } last_objinfo_t;
 
@@ -37,7 +41,7 @@ void mem_init_thr(int tid) {
     pthread_setspecific(tid_key, (void *)(long)tid);
 
     TLS(last_info) = calloc_check(NOBJS, sizeof(*TLS(last_info)),
-            "prev_info[thrid]");
+            "prev_info[tid]");
     for (int i = 0; i < NOBJS; i++) {
         // First memop id is 0, initialize last read memop to -1 so we can
         // distinguish whether there's a last read or not.
@@ -49,13 +53,13 @@ void mem_init_thr(int tid) {
 
 static inline void log_read(int objid, int version) {
     TLS_tid();
-    fprintf(TLS(read_log), "%d %d %d %d\n", objid, version, TLS(read_memop), 
+    fprintf(TLS(read_log), "%d %d %d %d\n", objid, version / 2, TLS(read_memop),
             TLS(last_info)[objid].read_memop);
 }
 
 static inline void log_write(int objid, int version) {
     TLS_tid();
-    fprintf(TLS(write_log), "%d %d %d\n", objid, version, TLS(write_memop));
+    fprintf(TLS(write_log), "%d %d %d\n", objid, version / 2, TLS(write_memop));
 }
 
 #define likely(x) __builtin_expect(!!(x), 1)
@@ -95,10 +99,17 @@ repeat:
     // If version changed since last read, there must be writes to this object.
     // During replay, this read should wait the object reach to the current
     // version.
-    if (TLS(last_info)[objid].version != version) {
+    if (TLS(last_info)[objid].read_version != version) {
         log_read(objid, version);
+        TLS(last_info)[objid].read_version = version;
+        // Update version so that following write after read don't need log.
         TLS(last_info)[objid].version = version;
     }
+
+#ifdef DEBUG
+    fprintf(stderr, "T%d R%d obj %d @%d   \t val %d\n", tid, TLS(read_memop), objid,
+        version / 2, val);
+#endif
 
     // Not every read will take log. To get precise dependency, maintain the
     // last read memop information for each thread.
@@ -132,17 +143,29 @@ void mem_write(int32_t *addr, int32_t val) {
         log_write(objid, version);
     }
 
+#ifdef DEBUG
+    int actual_version = version / 2;
+    fprintf(stderr, "T%d W%d obj %d @%d->%d\t val %d\n", tid, TLS(write_memop), objid,
+        actual_version, actual_version + 1, val);
+#endif
+
     TLS(last_info)[objid].version = version + 2;
     TLS(write_memop)++;
 }
 
 void mem_finish_thr() {
     TLS_tid();
+
+    // Set read memop to -1 to mark as last memop. The actual last read memop is in last_info.
+    TLS(read_memop) = -1;
     // Must be called after all writes are done.
-    // For each object, dump last read info if it's written by other thread.
+    // For each object, dump last read info if it's written by other thread. If the object is
+    // not written by other thread, then no one need to wait this write. So no log needed.
     // Used to generate write-after-read log for the last read log.
     for (int i = 0; i < NOBJS; i++) {
-        fprintf(stderr, "T%d last RD obj %d @%d\n", tid, i, TLS(last_info)[i].version);
+#ifdef DEBUG
+        fprintf(stderr, "T%d last RD obj %d @%d\n", tid, i, TLS(last_info)[i].read_version / 2);
+#endif
         if (TLS(last_info)[i].version != objinfo[i].version) {
             log_read(i, TLS(last_info)[i].version);
         }

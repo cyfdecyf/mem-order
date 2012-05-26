@@ -38,6 +38,8 @@ diff result-record result-play
 
 if [ $? == 0 ]; then
     cecho "Replay result correct"
+    exit 0
 else
     echo -e "\e[1;31mReplay result wrong\e[0m"
+    exit 1
 fi

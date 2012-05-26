@@ -33,10 +33,17 @@ int main(int argc, char const *argv[]) {
     while (fscanf(rlog, "%d %d %d %d\n", &objid, &version, &read_memop,
         &last_read_memop) == 4) {
 
-        // No previous read, no dependency needed
         if (last_read_memop == -1) {
+            // No previous read, no dependency needed
             last_read_version[objid] = version;
             continue;
+        }
+
+        if (read_memop == -1) {
+            // Dumped last read memop info. This read maybe written by other thread,
+            // so should use the log's own version.
+            fprintf(warlog, "%d %d %d %d\n", objid, version, last_read_memop, tid);
+            break;
         }
 
         fprintf(warlog, "%d %d %d %d\n", objid, last_read_version[objid], last_read_memop, tid);
