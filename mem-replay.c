@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#define DEBUG
+// #define DEBUG
 
 int *obj_version;
 
@@ -182,12 +182,16 @@ int32_t mem_read(int32_t *addr) {
         // objid in log should have no use
         assert(objid == TLS(read_aw).objid);
 
+#ifdef DEBUG
         fprintf(stderr, "T%d R%d wait obj %d @%d->%d\n", tid, TLS(read_memop), 
             objid, obj_version[objid], TLS(read_aw).version);
+#endif
         while (obj_version[objid] < TLS(read_aw).version) {
             cpu_relax();
         }
-        fprintf(stderr, "wait done\n");
+#ifdef DEBUG
+        fprintf(stderr, "T%d R%d wait done\n", tid, TLS(read_memop));
+#endif
 
         if (obj_version[objid] != TLS(read_aw).version) {
             fprintf(stderr, "obj_version[%d] = %d, read_aw.version = %d\n", objid, obj_version[objid], TLS(read_aw).version);
@@ -211,12 +215,16 @@ void mem_write(int32_t *addr, int32_t val) {
         // objid in log should have no use
         assert(objid == TLS(write_aw).objid);
 
+#ifdef DEBUG
         fprintf(stderr, "T%d W%d wait obj %d @%d->@%d\n", tid, TLS(write_memop),
             objid, obj_version[objid], TLS(write_aw).version);
+#endif
         while (obj_version[objid] < TLS(write_aw).version) {
             cpu_relax();
         }
-        fprintf(stderr, "wait done\n");
+#ifdef DEBUG
+        fprintf(stderr, "T%d W%d wait done\n", tid, TLS(write_memop));
+#endif
 
         assert(obj_version[objid] == TLS(write_aw).version);
         next_write_aw_log();
@@ -225,12 +233,16 @@ void mem_write(int32_t *addr, int32_t val) {
     // Next wait read that get this version.
     WarLog *log;
     while ((log = wait_read(objid, obj_version[objid])) != NULL) {
+#ifdef DEBUG
         fprintf(stderr, "T%d W%d wait T%d R%d on obj %d\n", tid, TLS(write_memop),
             log->tid, log->read_memop, objid);
+#endif
         while (read_memop_tls[log->tid] <= log->read_memop) {
             cpu_relax();
         }
-        fprintf(stderr, "wait done\n");
+#ifdef DEBUG
+        fprintf(stderr, "T%d W%d wait done\n", tid, TLS(write_memop));
+#endif
     }
 
     *addr = val;

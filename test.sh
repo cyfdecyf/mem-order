@@ -23,14 +23,14 @@ fi
 nthr=$1
 
 rm -f log/rec* log/war*
-cecho "Record with $nthr threads   Result:========"
+cecho "Record with $nthr threads   Result:=========="
 ./record $nthr | tee result-record
 cecho "End result==============================="
 
 cecho "Log processing ..."
 (cd log; process_log)
 
-cecho "Replay with $nthr threads    Result:======="
+cecho "Replay with $nthr threads    Result:========="
 ./play $nthr | tee result-play
 cecho "End result==============================="
 

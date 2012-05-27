@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define DEBUG
+// #define DEBUG
 
 typedef struct {
     /* Version is like write counter */
@@ -145,8 +145,8 @@ void mem_write(int32_t *addr, int32_t val) {
 
 #ifdef DEBUG
     int actual_version = version / 2;
-    fprintf(stderr, "T%d W%d obj %d @%d->%d\t val %d\n", tid, TLS(write_memop), objid,
-        actual_version, actual_version + 1, val);
+    fprintf(stderr, "T%d W%d obj %d @%d->%d\t val %d\n", tid, TLS(write_memop),
+        objid, actual_version, actual_version + 1, val);
 #endif
 
     TLS(last_info)[objid].version = version + 2;
@@ -156,18 +156,21 @@ void mem_write(int32_t *addr, int32_t val) {
 void mem_finish_thr() {
     TLS_tid();
 
-    // Set read memop to -1 to mark as last memop. The actual last read memop is in last_info.
+    // Set read memop to -1 to mark as last memop. The actual last read
+    // memop is in last_info.
     TLS(read_memop) = -1;
-    // Must be called after all writes are done.
-    // For each object, dump last read info if it's written by other thread. If the object is
-    // not written by other thread, then no one need to wait this write. So no log needed.
-    // Used to generate write-after-read log for the last read log.
+    // Must be called after all writes are done. For each object, make
+    // another final read. (Actually we just need to perform the logic of
+    // taking logs.) This is necessary for the last read to an object that's
+    // modified by other thread later. Making a final read can record the
+    // last read info which otherwise would be lost. Note the final read don't
+    // need to be waited by any thread as it's not executed by the program.
     for (int i = 0; i < NOBJS; i++) {
 #ifdef DEBUG
-        fprintf(stderr, "T%d last RD obj %d @%d\n", tid, i, TLS(last_info)[i].read_version / 2);
+        fprintf(stderr, "T%d last RD obj %d @%d\n", tid, i,
+            TLS(last_info)[i].read_version / 2);
 #endif
-        if (TLS(last_info)[i].version != objinfo[i].version) {
-            log_read(i, TLS(last_info)[i].version);
-        }
+        if (TLS(last_info)[i].read_version != objinfo[i].version)
+            log_read(i, TLS(last_info)[i].read_version);
     }
 }
