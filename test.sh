@@ -15,31 +15,37 @@ function process_log() {
     cat war-* | sort -n -k1,1 -k2,2 > war
 }
 
-if [ $# != 1 ]; then
-    echo "Usage: run.sh <nthr>"
+if [[ $# > 2 || $# == 0 ]]; then
+    echo "Usage: run.sh <nthr> [ntimes]"
     exit 1
 fi
 
 nthr=$1
-
-rm -f log/rec* log/war*
-cecho "Record with $nthr threads   Result:=========="
-./record $nthr | tee result-record
-cecho "End result==============================="
-
-cecho "Log processing ..."
-(cd log; process_log)
-
-cecho "Replay with $nthr threads    Result:========="
-./play $nthr | tee result-play
-cecho "End result==============================="
-
-diff result-record result-play
-
-if [ $? == 0 ]; then
-    cecho "Replay result correct"
-    exit 0
+if [ $# == 2 ]; then
+    ntimes=$2
 else
-    echo -e "\e[1;31mReplay result wrong\e[0m"
-    exit 1
+    ntimes=1
 fi
+
+for i in `seq 1 $ntimes`; do
+    rm -f log/rec* log/war*
+    cecho "Record with $nthr threads   Result:=========="
+    ./record $nthr | tee result-record
+    cecho "End result==============================="
+
+    cecho "Log processing ..."
+    (cd log; process_log)
+
+    cecho "Replay with $nthr threads    Result:========="
+    ./play $nthr | tee result-play
+    cecho "End result==============================="
+
+    diff result-record result-play
+
+    if [ $? == 0 ]; then
+        cecho "Replay result correct"
+    else
+        echo -e "\e[1;31mReplay result wrong\e[0m"
+        exit 1
+    fi
+done
