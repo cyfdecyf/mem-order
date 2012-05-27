@@ -9,6 +9,9 @@
 
 int *obj_version;
 
+DEFINE_TLS_GLOBAL(int, read_memop);
+DEFINE_TLS_GLOBAL(int, write_memop);
+
 typedef struct WarLog {
     int read_memop;
     int version;
@@ -86,6 +89,7 @@ static void load_war_log() {
         war[i].log = calloc_check(INIT_LOG_CNT, sizeof(war[0].log[0]),
             "Can't allocate war[i].log");
         war[i].size = INIT_LOG_CNT;
+        war[i].n = 0;
     }
 
     WarLog ent;
@@ -104,18 +108,19 @@ static void load_war_log() {
             war[objid].size = new_size;
         }
 
-        war[objid].log[war->n] = ent;
-        war->n++;
+        int n = war[objid].n;
+        war[objid].log[n] = ent;
+        war[objid].n++;
     }
 
     for (int i = 0; i < NOBJS; ++i) {
         // cap is then used as index to the last log.
         // n is then used as the index to the next unused log
         war[i].size = war[i].n - 1;
-    }
 #ifdef DEBUG
-    fprintf(stderr, "war[0].size = %d\n", war[0].size);
+        fprintf(stderr, "war[%d].size = %d\n", i, war[i].size);
 #endif
+    }
 }
 
 WarLog *wait_read(int objid, int version) {
@@ -124,25 +129,22 @@ WarLog *wait_read(int objid, int version) {
     WarLog *log = war[objid].log;
     // Search if there's any read get the current version.
 #ifdef DEBUG
-    fprintf(stderr, "T%d searching wait for obj %d @%d war_idx %d\n",
-            tid, objid, version, TLS(war_idx)[objid]);
+    fprintf(stderr, "T%d W%d searching wait for obj %d @%d war_idx[%d] %d\n",
+            tid, TLS(write_memop), objid, version, objid, TLS(war_idx)[objid]);
 #endif
     for (i = TLS(war_idx)[objid]; i <= war[objid].size &&
             (version > log[i].version || log[i].tid == tid); ++i);
-    // Ignore log that waiting self.
     if (i <= war[objid].size && version == log[i].version) {
         TLS(war_idx)[objid] = i + 1;
         return &log[i];
     }
     TLS(war_idx)[objid] = i;
 #ifdef DEBUG
-    fprintf(stderr, "No RD @%d for obj %d found\n", version, objid);
+    fprintf(stderr, "T%d W%d No RD @%d for obj %d found war_idx[%d] = %d\n",
+        tid, TLS(write_memop), version, objid, objid, i);
 #endif
     return NULL;
 }
-
-DEFINE_TLS_GLOBAL(int, read_memop);
-DEFINE_TLS_GLOBAL(int, write_memop);
 
 void mem_init(int nthr) {
     load_war_log();
@@ -194,7 +196,8 @@ int32_t mem_read(int32_t *addr) {
 #endif
 
         if (obj_version[objid] != TLS(read_aw).version) {
-            fprintf(stderr, "obj_version[%d] = %d, read_aw.version = %d\n", objid, obj_version[objid], TLS(read_aw).version);
+            fprintf(stderr, "T%d obj_version[%d] = %d, read_aw.version = %d\n",
+                tid, objid, obj_version[objid], TLS(read_aw).version);
         }
         assert(obj_version[objid] == TLS(read_aw).version);
         next_read_aw_log();
