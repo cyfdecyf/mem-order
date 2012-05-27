@@ -85,9 +85,10 @@ static void load_war_log() {
     }
 
     war = calloc_check(NOBJS, sizeof(*war), "Can't allocate war");
+
+    int warlogsize = INIT_LOG_CNT * sizeof(war[0].log[0]);
     for (int i = 0; i < NOBJS; i++) {
-        war[i].log = calloc_check(INIT_LOG_CNT, sizeof(war[0].log[0]),
-            "Can't allocate war[i].log");
+        war[i].log = calloc_check(1, warlogsize, "Can't allocate war[i].log");
         war[i].size = INIT_LOG_CNT;
         war[i].n = 0;
     }
@@ -95,17 +96,17 @@ static void load_war_log() {
     WarLog ent;
     int objid;
     while (read_war_log(logfile, &ent, &objid)) {
+        assert(objid < NOBJS);
         // Need to enlarge log array
-        if (war[objid].n > war[objid].size) {
-            printf("%d log resizing\n", objid);
-            unsigned int new_size = sizeof(war[0].log[0]) * war[objid].size * 2;
-            WarLog *new_log = realloc(war[objid].log, new_size);
+        if (war[objid].n >= war[objid].size) {
+            unsigned int mem_size = war[objid].size * sizeof(war[0].log[0]) * 2;
+            WarLog *new_log = realloc(war[objid].log, mem_size);
             if (! new_log) {
                 printf("Can't reallocate for war[%d].log\n", objid);
                 exit(1);
             }
             war[objid].log = new_log;
-            war[objid].size = new_size;
+            war[objid].size *= 2;
         }
 
         int n = war[objid].n;
