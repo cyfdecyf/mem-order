@@ -93,9 +93,8 @@ static void load_war_log() {
         war[i].n = 0;
     }
 
-    WarLog ent;
     int objid;
-    while (read_war_log(logfile, &ent, &objid)) {
+    while (1) {
         assert(objid < NOBJS);
         // Need to enlarge log array
         if (war[objid].n >= war[objid].size) {
@@ -110,14 +109,18 @@ static void load_war_log() {
         }
 
         int n = war[objid].n;
-        war[objid].log[n] = ent;
+        WarLog *ent = &war[objid].log[n];
+        if (! read_war_log(logfile, ent, &objid)) {
+            war[objid].n--;
+            break;
+        }
         war[objid].n++;
     }
 
     for (int i = 0; i < NOBJS; ++i) {
         // cap is then used as index to the last log.
         // n is then used as the index to the next unused log
-        war[i].size = war[i].n - 1;
+        war[i].size = war[i].n;
 #ifdef DEBUG
         fprintf(stderr, "war[%d].size = %d\n", i, war[i].size);
 #endif
