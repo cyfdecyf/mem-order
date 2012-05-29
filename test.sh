@@ -10,7 +10,7 @@ function process_log() {
     pushd log
     let maxid=$nthr-1
     sort -n -k1,1 -k2,2 > "memop" <(for i in `seq 0 $maxid`; do
-        awk "{ print \$0 \" $i\"}" < memop-$i
+        grep -v -- '-1$' memop-$i | awk "{ print \$0 \" $i\"}"
     done)
     popd
 }

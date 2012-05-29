@@ -47,7 +47,7 @@ int main(int argc, const char *argv[]) {
     pthread_t *thr;
     thr = calloc_check(nthr, sizeof(pthread_t), "pthread_t array thr");
 
-    // Initialize memory order recorder
+    // Initialize memory order recorder/replayer
     mem_init(nthr);
 
     for (long i = 0; i < nthr; i++) {

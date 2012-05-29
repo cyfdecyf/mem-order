@@ -74,8 +74,7 @@ static void load_wait_memop_log() {
 
     int objid;
     WaitMemopLog ent;
-    while (fscanf(logfile, "%d %d %d %d", &objid, &ent.version, &ent.memop,
-            &ent.tid) == 4) {
+    while (fscanf(logfile, "%d %d %d %d", &objid, &ent.version, &ent.memop, &ent.tid) == 4) {
         assert(objid < NOBJS);
 
         int n = wait_memop[objid].n;
