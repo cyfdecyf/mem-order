@@ -1,6 +1,5 @@
-log/rec*
-log/pla*
-log/war*
+log/version*
+log/memop*
 .*.d
 */infer
 record

@@ -7,12 +7,12 @@ function cecho() {
 }
 
 function process_log() {
+    pushd log
     let maxid=$nthr-1
-    for i in `seq 0 $maxid`; do
-        echo Infer WAR for thread $i
-        ./infer $i rec-rd-$i
-    done
-    cat war-* | sort -n -k1,1 -k2,2 > war
+    sort -n -k1,1 -k2,2 > "memop" <(for i in `seq 0 $maxid`; do
+        awk "{ print \$0 \" $i\"}" < memop-$i
+    done)
+    popd
 }
 
 if [[ $# > 2 || $# == 0 ]]; then
@@ -28,13 +28,14 @@ else
 fi
 
 for i in `seq 1 $ntimes`; do
-    rm -f log/rec* log/war*
+    rm -f log/memop* log/version*
     cecho "Record with $nthr threads   Result:=========="
     ./record $nthr | tee result-record
     cecho "End result==============================="
 
     cecho "Log processing ..."
-    (cd log; process_log)
+
+    process_log
 
     cecho "Replay with $nthr threads    Result:========="
     ./play $nthr | tee result-play
