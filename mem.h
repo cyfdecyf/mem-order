@@ -3,7 +3,9 @@
 
 #include <stdint.h>
 #include <pthread.h>
-#include <stdlib.h>
+
+#define DEBUG
+#include "debug.h"
 
 // Shared object size configured to 8 to ease output
 #define OBJ_SIZE 8

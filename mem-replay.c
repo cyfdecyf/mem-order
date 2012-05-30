@@ -5,8 +5,6 @@
 #include <stdlib.h>
 #include <assert.h>
 
-// #define DEBUG
-
 int *obj_version;
 
 DEFINE_TLS_GLOBAL(int, memop);
@@ -105,10 +103,8 @@ WaitMemopLog *next_wait_memop(int objid, int version) {
     int i;
     WaitMemopLog *log = wait_memop[objid].log;
     // Search if there's any read get the current version.
-#ifdef DEBUG
-    fprintf(stderr, "T%d W%d searching wait for obj %d @%d wait_memop_idx[%d] %d\n",
+    DPRINTF("T%d W%d searching wait for obj %d @%d wait_memop_idx[%d] %d\n",
             tid, TLS(memop), objid, version, objid, TLS(wait_memop_idx)[objid]);
-#endif
     for (i = TLS(wait_memop_idx)[objid]; i <= wait_memop[objid].size &&
             (version > log[i].version || log[i].tid == tid); ++i);
 
@@ -117,10 +113,8 @@ WaitMemopLog *next_wait_memop(int objid, int version) {
         return &log[i];
     }
     TLS(wait_memop_idx)[objid] = i;
-#ifdef DEBUG
-    fprintf(stderr, "T%d W%d No RD @%d for obj %d found wait_memop_idx[%d] = %d\n",
+    DPRINTF("T%d W%d No RD @%d for obj %d found wait_memop_idx[%d] = %d\n",
         tid, TLS(memop), version, objid, objid, i);
-#endif
     return NULL;
 }
 
@@ -151,16 +145,12 @@ static void wait_version(int objid) {
 
     if (!TLS(no_more_wait_version) && TLS(memop) == TLS(wait_version).memop) {
         // Wait version reaches the recorded value
-#ifdef DEBUG
-        fprintf(stderr, "T%d op%d wait obj %d @%d->%d\n", tid, TLS(memop), 
+        DPRINTF("T%d op%d wait obj %d @%d->%d\n", tid, TLS(memop), 
             objid, obj_version[objid], TLS(wait_version).version);
-#endif
         while (obj_version[objid] < TLS(wait_version).version) {
             cpu_relax();
         }
-#ifdef DEBUG
-        fprintf(stderr, "T%d op%d wait done\n", tid, TLS(memop));
-#endif
+        DPRINTF("T%d op%d wait done\n", tid, TLS(memop));
 
         if (obj_version[objid] != TLS(wait_version).version) {
             fprintf(stderr, "T%d obj_version[%d] = %d, wait_version = %d\n",
@@ -193,16 +183,12 @@ void mem_write(int32_t *addr, int32_t val) {
     // Wait memory accesses that happen at this version.
     WaitMemopLog *log;
     while ((log = next_wait_memop(objid, obj_version[objid])) != NULL) {
-#ifdef DEBUG
-        fprintf(stderr, "T%d W%d wait T%d R%d on obj %d\n", tid, TLS(memop),
+        DPRINTF("T%d W%d wait T%d R%d on obj %d\n", tid, TLS(memop),
             log->tid, log->memop, objid);
-#endif
         while (memop_tls[log->tid] <= log->memop) {
             cpu_relax();
         }
-#ifdef DEBUG
-        fprintf(stderr, "T%d W%d wait done\n", tid, TLS(memop));
-#endif
+        DPRINTF("T%d W%d wait done\n", tid, TLS(memop));
     }
 
     *addr = val;

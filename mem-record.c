@@ -4,8 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// #define DEBUG
-
 typedef struct {
     /* Version is like write counter */
     volatile int version;
@@ -111,10 +109,8 @@ repeat:
         TLS(last)[objid].version = version;
     }
 
-#ifdef DEBUG
-    fprintf(stderr, "T%d R%d obj %d @%d   \t val %d\n", tid, TLS(memop), objid,
+    DPRINTF("T%d R%d obj %d @%d   \t val %d\n", tid, TLS(memop), objid,
         version / 2, val);
-#endif
 
     // Not every read will take log. To get precise dependency, maintain the
     // last read memop information for each object.
@@ -148,11 +144,8 @@ void mem_write(int32_t *addr, int32_t val) {
         log_order(objid, version);
     }
 
-#ifdef DEBUG
-    int actual_version = version / 2;
-    fprintf(stderr, "T%d W%d obj %d @%d->%d\t val %d\n", tid, TLS(memop),
-        objid, actual_version, actual_version + 1, val);
-#endif
+    DPRINTF("T%d W%d obj %d @%d->%d\t val %d\n", tid, TLS(memop),
+        objid, version / 2, version / 2 + 1, val);
 
     TLS(last)[objid].memop = TLS(memop);
     TLS(last)[objid].version = version + 2;
@@ -172,10 +165,7 @@ void mem_finish_thr() {
     // last read info which otherwise would be lost. Note the final read don't
     // need to be waited by any thread as it's not executed by the program.
     for (int i = 0; i < NOBJS; i++) {
-#ifdef DEBUG
-        fprintf(stderr, "T%d last RD obj %d @%d\n", tid, i,
-            TLS(last)[i].version / 2);
-#endif
+        DPRINTF("T%d last RD obj %d @%d\n", tid, i, TLS(last)[i].version / 2);
         if (TLS(last)[i].version != objinfo[i].version)
             log_other_wait_memop(i);
     }
