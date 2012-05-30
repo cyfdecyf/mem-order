@@ -20,8 +20,19 @@ typedef struct {
 
 DEFINE_TLS_GLOBAL(last_objinfo_t *, last);
 DEFINE_TLS_GLOBAL(int, memop);
+
+#ifdef BINARY_LOG
+typedef struct {
+    char *buf;
+    char *end;
+    int logfd;
+} MappedLog;
+DEFINE_TLS_GLOBAL(MappedLog, wait_version_log);
+DEFINE_TLS_GLOBAL(MappedLog, wait_memop_log);
+#else
 DEFINE_TLS_GLOBAL(FILE *, wait_version_log);
 DEFINE_TLS_GLOBAL(FILE *, wait_memop_log);
+#endif
 
 void mem_init(int nthr) {
     objinfo = calloc_check(NOBJS, sizeof(*objinfo), "objinfo");
@@ -42,10 +53,57 @@ void mem_init_thr(int tid) {
         // distinguish whether there's a last read or not.
         TLS(last)[i].memop = -1;
     }
+#ifdef BINARY_LOG
+    TLS(wait_version_log).buf = (char *)open_mapped_log("log/version", tid,
+        &TLS(wait_version_log).logfd);
+    TLS(wait_version_log).end = TLS(wait_version_log).buf + LOG_BUFFER_SIZE;
+
+    TLS(wait_memop_log).buf = (char *)open_mapped_log("log/memop", tid,
+        &TLS(wait_memop_log).logfd);
+    TLS(wait_memop_log).end = TLS(wait_memop_log).buf + LOG_BUFFER_SIZE;
+#else
     TLS(wait_version_log) = new_log("log/version", tid);
     TLS(wait_memop_log) = new_log("log/memop", tid);
+#endif
 }
 
+#ifdef BINARY_LOG
+static inline char *next_log_start(MappedLog *log, int entry_size) {
+    char *start;
+    if ((log->buf + entry_size) <= log->end) {
+        start = log->buf;
+        log->buf += entry_size;
+    } else {
+        start = enlarge_mapped_log(log->end - LOG_BUFFER_SIZE,
+            log->logfd);
+        log->end = start + LOG_BUFFER_SIZE;
+        log->buf = start + entry_size;
+    }
+    return start;
+}
+
+static inline void log_wait_version(int current_version) {
+    TLS_tid();
+    MappedLog *log = &TLS(wait_version_log);
+
+    char *start = next_log_start(log, 2 * sizeof(int));
+
+    *((int *)start + 0) = TLS(memop);
+    *((int *)start + 1) = current_version / 2;
+}
+
+static inline void log_other_wait_memop(int objid) {
+    TLS_tid();
+    MappedLog *log = &TLS(wait_memop_log);
+
+    char *start = next_log_start(log, 3 * sizeof(int));
+
+    *((int *)start + 0) = objid;
+    *((int *)start + 1) = TLS(last)[objid].version / 2;
+    *((int *)start + 2) = TLS(last)[objid].memop;
+}
+
+#else // BINARY_LOG
 // Wait version is used by thread self to wait other thread.
 static inline void log_wait_version(int current_version) {
     TLS_tid();
@@ -58,6 +116,7 @@ static inline void log_other_wait_memop(int objid) {
     fprintf(TLS(wait_memop_log), "%d %d %d\n", objid, TLS(last)[objid].version / 2,
         TLS(last)[objid].memop);
 }
+#endif
 
 static inline void log_order(int objid, int current_version) {
     log_wait_version(current_version);
