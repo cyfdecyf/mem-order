@@ -49,9 +49,9 @@ void mem_init_thr(int tid) {
 }
 
 // Wait version is used by thread self to wait other thread.
-static inline void log_wait_version(int objid, int current_version) {
+static inline void log_wait_version(int current_version) {
     TLS_tid();
-    fprintf(TLS(wait_version_log), "%d %d %d\n", objid, current_version / 2, TLS(memop));
+    fprintf(TLS(wait_version_log), "%d %d\n", current_version / 2, TLS(memop));
 }
 
 // Wait memop is used by other thread to wait the last memory access of self.
@@ -62,7 +62,7 @@ static inline void log_other_wait_memop(int objid) {
 }
 
 static inline void log_order(int objid, int current_version) {
-    log_wait_version(objid, current_version);
+    log_wait_version(current_version);
     log_other_wait_memop(objid);
 }
 

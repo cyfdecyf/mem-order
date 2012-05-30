@@ -26,7 +26,6 @@ static inline int read_wait_memop_log(FILE *log, WaitMemopLog *ent, int *objid) 
 }
 
 typedef struct {
-    int objid;
     int version;
     int memop;
 } WaitVersionLog;
@@ -38,8 +37,8 @@ static inline void next_wait_version_log() {
     TLS_tid();
     WaitVersionLog *ent = &TLS(wait_version);
 
-    if (fscanf(TLS(wait_version_log), "%d %d %d", &ent->objid, &ent->version,
-            &ent->memop) != 3) {
+    if (fscanf(TLS(wait_version_log), "%d %d", &ent->version,
+            &ent->memop) != 2) {
         // fprintf(stderr, "No more wait version log for thread %d\n", tid);
         TLS(no_more_wait_version) = 1;
     }
@@ -152,10 +151,6 @@ static void wait_version(int objid) {
 
     if (!TLS(no_more_wait_version) && TLS(memop) == TLS(wait_version).memop) {
         // Wait version reaches the recorded value
-
-        // TODO objid in log should have no use
-        assert(objid == TLS(wait_version).objid);
-
 #ifdef DEBUG
         fprintf(stderr, "T%d op%d wait obj %d @%d->%d\n", tid, TLS(memop), 
             objid, obj_version[objid], TLS(wait_version).version);
