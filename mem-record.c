@@ -27,8 +27,7 @@ typedef struct {
     char *end;
     int logfd;
 } MappedLog;
-DEFINE_TLS_GLOBAL(MappedLog, wait_version_log);
-DEFINE_TLS_GLOBAL(MappedLog, wait_memop_log);
+DEFINE_TLS_GLOBAL(MappedLog, wait_log);
 #else
 DEFINE_TLS_GLOBAL(FILE *, wait_version_log);
 DEFINE_TLS_GLOBAL(FILE *, wait_memop_log);
@@ -38,8 +37,12 @@ void mem_init(int nthr) {
     objinfo = calloc_check(NOBJS, sizeof(*objinfo), "objinfo");
     ALLOC_TLS_GLOBAL(nthr, last);
     ALLOC_TLS_GLOBAL(nthr, memop);
+#ifdef BINARY_LOG
+    ALLOC_TLS_GLOBAL(nthr, wait_log);
+#else
     ALLOC_TLS_GLOBAL(nthr, wait_version_log);
     ALLOC_TLS_GLOBAL(nthr, wait_memop_log);
+#endif
 }
 
 void mem_init_thr(int tid) {
@@ -54,13 +57,9 @@ void mem_init_thr(int tid) {
         TLS(last)[i].memop = -1;
     }
 #ifdef BINARY_LOG
-    TLS(wait_version_log).buf = (char *)open_mapped_log("log/version", tid,
-        &TLS(wait_version_log).logfd);
-    TLS(wait_version_log).end = TLS(wait_version_log).buf + LOG_BUFFER_SIZE;
-
-    TLS(wait_memop_log).buf = (char *)open_mapped_log("log/memop", tid,
-        &TLS(wait_memop_log).logfd);
-    TLS(wait_memop_log).end = TLS(wait_memop_log).buf + LOG_BUFFER_SIZE;
+    TLS(wait_log).buf = (char *)open_mapped_log("log/wait", tid,
+        &TLS(wait_log).logfd);
+    TLS(wait_log).end = TLS(wait_log).buf + LOG_BUFFER_SIZE;
 #else
     TLS(wait_version_log) = new_log("log/version", tid);
     TLS(wait_memop_log) = new_log("log/memop", tid);
@@ -82,23 +81,28 @@ static inline char *next_log_start(MappedLog *log, int entry_size) {
     return start;
 }
 
-static inline void log_wait_version(int tid, int current_version) {
-    MappedLog *log = &TLS(wait_version_log);
+static inline void log_other_wait_memop(int tid, int objid, last_objinfo_t *lastobj) {
+    MappedLog *log = &TLS(wait_log);
 
-    char *start = next_log_start(log, 2 * sizeof(int));
+    int *start = (int *)next_log_start(log, 5 * sizeof(int));
 
-    *((int *)start + 0) = TLS(memop);
-    *((int *)start + 1) = current_version / 2;
+    *(start + 0) = -1;
+    *(start + 1) = -1;
+    *(start + 2) = objid;
+    *(start + 3) = lastobj->version / 2;
+    *(start + 4) = lastobj->memop;
 }
 
-static inline void log_other_wait_memop(int tid, int objid, last_objinfo_t *lastobj) {
-    MappedLog *log = &TLS(wait_memop_log);
+static inline void log_order(int tid, int objid, int current_version, last_objinfo_t *lastobj) {
+    MappedLog *log = &TLS(wait_log);
 
-    char *start = next_log_start(log, 3 * sizeof(int));
+    int *start = (int *)next_log_start(log, 5 * sizeof(int));
 
-    *((int *)start + 0) = objid;
-    *((int *)start + 1) = lastobj->version / 2;
-    *((int *)start + 2) = lastobj->memop;
+    *(start + 0) = TLS(memop);
+    *(start + 1) = current_version / 2;
+    *(start + 2) = objid;
+    *(start + 3) = lastobj->version / 2;
+    *(start + 4) = lastobj->memop;
 }
 
 #else // BINARY_LOG
@@ -112,12 +116,12 @@ static inline void log_other_wait_memop(int tid, int objid, last_objinfo_t *last
     fprintf(TLS(wait_memop_log), "%d %d %d\n", objid, lastobj->version / 2,
         lastobj->memop);
 }
-#endif
 
 static inline void log_order(int tid, int objid, int current_version, last_objinfo_t *lastobj) {
     log_wait_version(tid, current_version);
     log_other_wait_memop(tid, objid, lastobj);
 }
+#endif // BINARY_LOG
 
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)

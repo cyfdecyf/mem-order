@@ -4,10 +4,18 @@
 #include <stdint.h>
 #include <pthread.h>
 
-// #define DEBUG
-#include "debug.h"
+#define BENCHMARK
 
-#define BINARY_LOG
+#ifdef BENCHMARK
+#  define NITER 500000
+#  define BINARY_LOG
+#  undef DEBUG
+#else
+#  define NITER 2000
+// #  define DEBUG
+#endif
+
+#include "debug.h"
 
 // Shared object size configured to 8 to ease output
 #define OBJ_SIZE 8
