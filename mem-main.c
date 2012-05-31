@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <pthread.h>
 
-#define NITER 2000
+#define NITER 500000
 
 static int nthr;
 static volatile int start_flag;
