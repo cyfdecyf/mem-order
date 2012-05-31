@@ -161,8 +161,7 @@ static void wait_version(int objid) {
     }
 }
 
-int32_t mem_read(int32_t *addr) {
-    TLS_tid();
+int32_t mem_read(int tid, int32_t *addr) {
     int val;
     int objid = obj_id(addr);
 
@@ -174,8 +173,7 @@ int32_t mem_read(int32_t *addr) {
     return val;
 }
 
-void mem_write(int32_t *addr, int32_t val) {
-    TLS_tid();
+void mem_write(int tid, int32_t *addr, int32_t val) {
     int objid = obj_id(addr);
 
     wait_version(objid);

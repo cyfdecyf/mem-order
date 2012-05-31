@@ -27,8 +27,8 @@ static void *access_thr_fn(void *dummyid) {
             int32_t *addr = (int32_t *)&objs[j];
             // Different threads access different part of the shared object
             addr += tid & 1;
-            int32_t val = mem_read(addr);
-            mem_write(addr, val + 1);
+            int32_t val = mem_read(tid, addr);
+            mem_write(tid, addr, val + 1);
         }
     }
 

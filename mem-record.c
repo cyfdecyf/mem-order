@@ -82,8 +82,7 @@ static inline char *next_log_start(MappedLog *log, int entry_size) {
     return start;
 }
 
-static inline void log_wait_version(int current_version) {
-    TLS_tid();
+static inline void log_wait_version(int tid, int current_version) {
     MappedLog *log = &TLS(wait_version_log);
 
     char *start = next_log_start(log, 2 * sizeof(int));
@@ -92,43 +91,38 @@ static inline void log_wait_version(int current_version) {
     *((int *)start + 1) = current_version / 2;
 }
 
-static inline void log_other_wait_memop(int objid) {
-    TLS_tid();
+static inline void log_other_wait_memop(int tid, int objid, last_objinfo_t *lastobj) {
     MappedLog *log = &TLS(wait_memop_log);
 
     char *start = next_log_start(log, 3 * sizeof(int));
 
     *((int *)start + 0) = objid;
-    *((int *)start + 1) = TLS(last)[objid].version / 2;
-    *((int *)start + 2) = TLS(last)[objid].memop;
+    *((int *)start + 1) = lastobj->version / 2;
+    *((int *)start + 2) = lastobj->memop;
 }
 
 #else // BINARY_LOG
 // Wait version is used by thread self to wait other thread.
-static inline void log_wait_version(int current_version) {
-    TLS_tid();
+static inline void log_wait_version(int tid, int current_version) {
     fprintf(TLS(wait_version_log), "%d %d\n", current_version / 2, TLS(memop));
 }
 
 // Wait memop is used by other thread to wait the last memory access of self.
-static inline void log_other_wait_memop(int objid) {
-    TLS_tid();
-    fprintf(TLS(wait_memop_log), "%d %d %d\n", objid, TLS(last)[objid].version / 2,
-        TLS(last)[objid].memop);
+static inline void log_other_wait_memop(int tid, int objid, last_objinfo_t *lastobj) {
+    fprintf(TLS(wait_memop_log), "%d %d %d\n", objid, lastobj->version / 2,
+        lastobj->memop);
 }
 #endif
 
-static inline void log_order(int objid, int current_version) {
-    log_wait_version(current_version);
-    log_other_wait_memop(objid);
+static inline void log_order(int tid, int objid, int current_version, last_objinfo_t *lastobj) {
+    log_wait_version(tid, current_version);
+    log_other_wait_memop(tid, objid, lastobj);
 }
 
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
-int32_t mem_read(int32_t *addr) {
-    TLS_tid();
-
+int32_t mem_read(int tid, int32_t *addr) {
     int version;
     int32_t val;
     int objid = obj_id(addr);
@@ -157,15 +151,17 @@ repeat:
         // Re-read if there's writer
     } while (version != info->version);
 
+    last_objinfo_t *lastobj = &TLS(last)[objid];
+
     // If version changed since last read, there must be writes to this object.
     // 1. During replay, this read should wait the object reach to the current
     // version.
     // 2. The previous memop which get previous version should happen before the
     // write.
-    if (TLS(last)[objid].version != version) {
-        log_order(objid, version);
+    if (lastobj->version != version) {
+        log_order(tid, objid, version, lastobj);
         // Update version so that following write after read don't need log.
-        TLS(last)[objid].version = version;
+        lastobj->version = version;
     }
 
     DPRINTF("T%d R%d obj %d @%d   \t val %d\n", tid, TLS(memop), objid,
@@ -173,14 +169,12 @@ repeat:
 
     // Not every read will take log. To get precise dependency, maintain the
     // last read memop information for each object.
-    TLS(last)[objid].memop = TLS(memop);
+    lastobj->memop = TLS(memop);
     TLS(memop)++;
     return val;
 }
 
-void mem_write(int32_t *addr, int32_t val) {
-    TLS_tid();
-
+void mem_write(int tid, int32_t *addr, int32_t val) {
     int version;
     int objid = obj_id(addr);
     objinfo_t *info = &objinfo[objid];
@@ -199,15 +193,17 @@ void mem_write(int32_t *addr, int32_t val) {
 
     spin_unlock(&info->write_lock);
 
-    if (TLS(last)[objid].version != version) {
-        log_order(objid, version);
+    last_objinfo_t *lastobj = &TLS(last)[objid];
+
+    if (lastobj->version != version) {
+        log_order(tid, objid, version, lastobj);
     }
 
     DPRINTF("T%d W%d obj %d @%d->%d\t val %d\n", tid, TLS(memop),
         objid, version / 2, version / 2 + 1, val);
 
-    TLS(last)[objid].memop = TLS(memop);
-    TLS(last)[objid].version = version + 2;
+    lastobj->memop = TLS(memop);
+    lastobj->version = version + 2;
     TLS(memop)++;
 }
 
@@ -226,6 +222,6 @@ void mem_finish_thr() {
     for (int i = 0; i < NOBJS; i++) {
         DPRINTF("T%d last RD obj %d @%d\n", tid, i, TLS(last)[i].version / 2);
         if (TLS(last)[i].version != objinfo[i].version)
-            log_other_wait_memop(i);
+            log_other_wait_memop(tid, i, &TLS(last)[i]);
     }
 }

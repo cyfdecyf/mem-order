@@ -4,10 +4,10 @@
 #include <stdint.h>
 #include <pthread.h>
 
-#define DEBUG
+// #define DEBUG
 #include "debug.h"
 
-#define BINARY_LOG
+// #define BINARY_LOG
 
 // Shared object size configured to 8 to ease output
 #define OBJ_SIZE 8
@@ -26,8 +26,8 @@ void mem_init(int nthr);
 void mem_init_thr(int tid);
 void mem_finish_thr();
 
-int32_t mem_read(int32_t *addr);
-void    mem_write(int32_t *addr, int32_t val);
+int32_t mem_read(int tid, int32_t *addr);
+void    mem_write(int tid, int32_t *addr, int32_t val);
 
 void print_objs(void);
 
