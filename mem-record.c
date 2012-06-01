@@ -22,11 +22,6 @@ DEFINE_TLS_GLOBAL(last_objinfo_t *, last);
 DEFINE_TLS_GLOBAL(int, memop);
 
 #ifdef BINARY_LOG
-typedef struct {
-    char *buf;
-    char *end;
-    int logfd;
-} MappedLog;
 DEFINE_TLS_GLOBAL(MappedLog, wait_log);
 #else
 DEFINE_TLS_GLOBAL(FILE *, wait_version_log);
@@ -57,9 +52,7 @@ void mem_init_thr(int tid) {
         TLS(last)[i].memop = -1;
     }
 #ifdef BINARY_LOG
-    TLS(wait_log).buf = (char *)open_mapped_log("log/wait", tid,
-        &TLS(wait_log).logfd);
-    TLS(wait_log).end = TLS(wait_log).buf + LOG_BUFFER_SIZE;
+    new_mapped_log("log/wait", tid, &TLS(wait_log));
 #else
     TLS(wait_version_log) = new_log("log/version", tid);
     TLS(wait_memop_log) = new_log("log/memop", tid);
@@ -67,20 +60,6 @@ void mem_init_thr(int tid) {
 }
 
 #ifdef BINARY_LOG
-static inline char *next_log_start(MappedLog *log, int entry_size) {
-    char *start;
-    if ((log->buf + entry_size) <= log->end) {
-        start = log->buf;
-        log->buf += entry_size;
-    } else {
-        start = enlarge_mapped_log(log->end - LOG_BUFFER_SIZE,
-            log->logfd);
-        log->end = start + LOG_BUFFER_SIZE;
-        log->buf = start + entry_size;
-    }
-    return start;
-}
-
 static inline void log_other_wait_memop(int tid, int objid, last_objinfo_t *lastobj) {
     MappedLog *log = &TLS(wait_log);
 

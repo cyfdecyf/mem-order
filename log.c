@@ -6,7 +6,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <assert.h>
-#include <pthread.h>
 
 // #define DEBUG
 
@@ -39,52 +38,46 @@ FILE *open_log(const char *name, long id) {
     return handle_log(name, id, "r");
 }
 
-void *open_mapped_log(const char *name, int id, int *pfd) {
+int new_mapped_log(const char *name, int id, MappedLog *log) {
     char path[MAX_PATH_LEN];
     logpath(path, name, id);
 
-    int fd = open(path, O_RDWR|O_CREAT|O_TRUNC,
-        S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
-    if (fd == -1) {
+    log->fd = open(path, O_RDWR|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+    if (log->fd == -1) {
         perror("creat");
         exit(1);
     }
-    if (pfd)
-        *pfd = fd;
 #ifdef DEBUG
-    fprintf(stderr, "%s fd %d\n", path, fd);
+    fprintf(stderr, "%s fd %d\n", path, log->fd);
 #endif
 
-    if (ftruncate(fd, LOG_BUFFER_SIZE) == -1) {
+    if (ftruncate(log->fd, LOG_BUFFER_SIZE) == -1) {
         perror("ftruncate");
         exit(1);
     }
 
     struct stat sb;
-    if (fstat(fd, &sb) == -1) {
+    if (fstat(log->fd, &sb) == -1) {
         perror("fstat");
         exit(1);
     }
     assert(sb.st_size == LOG_BUFFER_SIZE);
-    char *buf = mmap(0, LOG_BUFFER_SIZE, PROT_WRITE, MAP_SHARED,
-        fd, 0);
-    if (buf == MAP_FAILED) {
+    log->buf = mmap(0, LOG_BUFFER_SIZE, PROT_WRITE|PROT_READ, MAP_SHARED, log->fd, 0);
+    if (log->buf == MAP_FAILED) {
         perror("mmap");
         exit(1);
     }
-    if (madvise(buf, LOG_BUFFER_SIZE, MADV_SEQUENTIAL) == -1) {
+    log->end = log->buf + LOG_BUFFER_SIZE;
+    if (madvise(log->buf, LOG_BUFFER_SIZE, MADV_SEQUENTIAL) == -1) {
         perror("madvise");
         exit(1);
     }
-    return buf;
+    return 0;
 }
 
-pthread_mutex_t map_lock = PTHREAD_MUTEX_INITIALIZER;
-
-void *enlarge_mapped_log(void *buf, int fd) {
-    pthread_mutex_lock(&map_lock);
+int enlarge_mapped_log(MappedLog *log) {
     struct stat sb;
-    if (fstat(fd, &sb) == -1) {
+    if (fstat(log->fd, &sb) == -1) {
         perror("fstat");
         exit(1);
     }
@@ -93,30 +86,31 @@ void *enlarge_mapped_log(void *buf, int fd) {
 #ifdef DEBUG
     fprintf(stderr, "fd %d unmap %p ", fd, buf);
 #endif
-    if (munmap(buf, LOG_BUFFER_SIZE) == -1) {
+    if (munmap(log->end - LOG_BUFFER_SIZE, LOG_BUFFER_SIZE) == -1) {
         perror("munmap");
         exit(1);
     }
     
-    if (ftruncate(fd, original_size + LOG_BUFFER_SIZE) == -1) {
+    if (ftruncate(log->fd, original_size + LOG_BUFFER_SIZE) == -1) {
         perror("ftruncate");
         exit(1);
     }
 
-    buf = mmap(0, LOG_BUFFER_SIZE, PROT_WRITE, MAP_SHARED, fd, original_size);
-    if (buf == MAP_FAILED) {
+    log->buf = mmap(0, LOG_BUFFER_SIZE, PROT_WRITE|PROT_READ, MAP_SHARED,
+        log->fd, original_size);
+    if (log->buf == MAP_FAILED) {
         perror("mmap");
         exit(1);
     }
+    log->end = log->buf + LOG_BUFFER_SIZE;
 #ifdef DEBUG
     fprintf(stderr, "new buf: %p truncate to %lld bytes\n", buf,
         (long long int)(original_size + LOG_BUFFER_SIZE));
 #endif
 
-    if (madvise(buf, LOG_BUFFER_SIZE, MADV_SEQUENTIAL) == -1) {
+    if (madvise(log->buf, LOG_BUFFER_SIZE, MADV_SEQUENTIAL) == -1) {
         perror("madvise");
         exit(1);
     }
-    pthread_mutex_unlock(&map_lock);
-    return buf;
+    return 0;
 }
