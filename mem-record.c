@@ -22,7 +22,8 @@ DEFINE_TLS_GLOBAL(last_objinfo_t *, last);
 DEFINE_TLS_GLOBAL(int, memop);
 
 #ifdef BINARY_LOG
-DEFINE_TLS_GLOBAL(MappedLog, wait_log);
+DEFINE_TLS_GLOBAL(MappedLog, wait_version_log);
+DEFINE_TLS_GLOBAL(MappedLog, wait_memop_log);
 #else
 DEFINE_TLS_GLOBAL(FILE *, wait_version_log);
 DEFINE_TLS_GLOBAL(FILE *, wait_memop_log);
@@ -33,7 +34,8 @@ void mem_init(int nthr) {
     ALLOC_TLS_GLOBAL(nthr, last);
     ALLOC_TLS_GLOBAL(nthr, memop);
 #ifdef BINARY_LOG
-    ALLOC_TLS_GLOBAL(nthr, wait_log);
+    ALLOC_TLS_GLOBAL(nthr, wait_version_log);
+    ALLOC_TLS_GLOBAL(nthr, wait_memop_log);
 #else
     ALLOC_TLS_GLOBAL(nthr, wait_version_log);
     ALLOC_TLS_GLOBAL(nthr, wait_memop_log);
@@ -52,7 +54,8 @@ void mem_init_thr(int tid) {
         TLS(last)[i].memop = -1;
     }
 #ifdef BINARY_LOG
-    new_mapped_log("log/wait", tid, &TLS(wait_log));
+    new_mapped_log("log/version", tid, &TLS(wait_version_log));
+    new_mapped_log("log/memop", tid, &TLS(wait_memop_log));
 #else
     TLS(wait_version_log) = new_log("log/version", tid);
     TLS(wait_memop_log) = new_log("log/memop", tid);
@@ -60,28 +63,23 @@ void mem_init_thr(int tid) {
 }
 
 #ifdef BINARY_LOG
-static inline void log_other_wait_memop(int tid, int objid, last_objinfo_t *lastobj) {
-    MappedLog *log = &TLS(wait_log);
+static inline void log_wait_version(int tid, int current_version) {
+    MappedLog *log = &TLS(wait_version_log);
 
-    int *start = (int *)next_log_start(log, 5 * sizeof(int));
-
-    *(start + 0) = -1;
-    *(start + 1) = -1;
-    *(start + 2) = objid;
-    *(start + 3) = lastobj->version / 2;
-    *(start + 4) = lastobj->memop;
-}
-
-static inline void log_order(int tid, int objid, int current_version, last_objinfo_t *lastobj) {
-    MappedLog *log = &TLS(wait_log);
-
-    int *start = (int *)next_log_start(log, 5 * sizeof(int));
+    int *start = (int *)next_log_start(log, 2 * sizeof(int));
 
     *(start + 0) = TLS(memop);
     *(start + 1) = current_version / 2;
-    *(start + 2) = objid;
-    *(start + 3) = lastobj->version / 2;
-    *(start + 4) = lastobj->memop;
+}
+
+static inline void log_other_wait_memop(int tid, int objid, last_objinfo_t *lastobj) {
+    MappedLog *log = &TLS(wait_memop_log);
+
+    int *start = (int *)next_log_start(log, 3 * sizeof(int));
+
+    *(start + 0) = objid;
+    *(start + 1) = lastobj->version / 2;
+    *(start + 2) = lastobj->memop;
 }
 
 #else // BINARY_LOG
@@ -95,12 +93,12 @@ static inline void log_other_wait_memop(int tid, int objid, last_objinfo_t *last
     fprintf(TLS(wait_memop_log), "%d %d %d\n", objid, lastobj->version / 2,
         lastobj->memop);
 }
+#endif // BINARY_LOG
 
 static inline void log_order(int tid, int objid, int current_version, last_objinfo_t *lastobj) {
     log_wait_version(tid, current_version);
     log_other_wait_memop(tid, objid, lastobj);
 }
-#endif // BINARY_LOG
 
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
@@ -193,9 +191,6 @@ void mem_write(int tid, int32_t *addr, int32_t val) {
 void mem_finish_thr() {
     TLS_tid();
 
-    // Set read memop to -1 to mark as last memop. The actual last read
-    // memop is in last.
-    // TLS(read_memop) = -1;
     // Must be called after all writes are done. For each object, take
     // wait_memop log.
     // This is necessary for the last read to an object that's
@@ -204,7 +199,16 @@ void mem_finish_thr() {
     // need to be waited by any thread as it's not executed by the program.
     for (int i = 0; i < NOBJS; i++) {
         DPRINTF("T%d last RD obj %d @%d\n", tid, i, TLS(last)[i].version / 2);
-        if (TLS(last)[i].version != objinfo[i].version)
+        if (TLS(last)[i].version != objinfo[i].version) {
             log_other_wait_memop(tid, i, &TLS(last)[i]);
+        }
     }
+#ifdef BINARY_LOG
+    // Mark the end of log
+    int *next = (int *)next_log_start(&TLS(wait_memop_log), sizeof(int));            
+    *next = -1;
+
+    next = (int *)next_log_start(&TLS(wait_version_log), sizeof(int));
+    *next = -1;
+#endif
 }
