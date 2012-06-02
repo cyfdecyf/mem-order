@@ -18,7 +18,7 @@ function process_text_log() {
 function process_binary_log() {
     let maxid=$nthr-1
     for i in `seq 0 $maxid`; do
-        ./processlog $i
+        ./reorder-memop $i
     done
 }
 

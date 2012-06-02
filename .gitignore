@@ -1,8 +1,11 @@
-log/version*
-log/memop*
+log/*-[0-9]
 .*.d
-*/infer
+.*.dpp
+infer
 record
+play
 mem-test
-*sublime-workspace
 dummy-acc
+reorder-memoplog
+result-*
+*sublime-workspace

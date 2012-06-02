@@ -5,6 +5,7 @@
 			"file_exclude_patterns":
 			[
 				".*.d",
+				".*.dpp",
 				"*sublime-workspace"
 			],
 			"path": "."

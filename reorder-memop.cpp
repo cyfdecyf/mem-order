@@ -101,7 +101,7 @@ void write_out_memop_log(const WaitMemopAll &all, long total, int tid) {
 
 int main(int argc, char const *argv[]) {
     if (argc != 2) {
-        printf("Usage: processlog <tid>\n");
+        printf("Usage: reorder-memop <tid>\n");
         exit(1);
     }
 
