@@ -67,21 +67,8 @@ void write_out_memop_log(const WaitMemopAll &all, long total, int tid) {
     char path[MAX_PATH_LEN];
     logpath(path, "log/sorted-memop", tid);
 
-    int fd = open(path, O_RDWR|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
-    if (fd == -1) {
-        perror("creat");
-        exit(1);
-    }
-
-    long size = total * sizeof(int) * 3;
-    if (ftruncate(fd, size) == -1) {
-        perror("ftruncate");
-        exit(1);
-    }
-
+    WaitMemop *buf = (WaitMemop *)create_mapped_file(path, total * sizeof(WaitMemop));
     DPRINTF("Open sorted log done\n");
-
-    WaitMemop *buf = (WaitMemop *)mmap(0, size, PROT_WRITE|PROT_READ, MAP_SHARED, fd, 0);
 
     WaitMemopAll::const_iterator objit;
     for (objit = all.begin(); objit != all.end(); ++objit) {

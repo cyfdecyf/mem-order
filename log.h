@@ -26,6 +26,8 @@ int open_mapped_log(const char *name, int id, MappedLog *log);
 
 int unmap_log(void *start, off_t size);
 
+void *create_mapped_file(const char *name, unsigned long size);
+
 static inline char *next_log_entry(MappedLog *log, int entry_size) {
     if ((log->buf + entry_size) > log->end) {
         enlarge_mapped_log(log);

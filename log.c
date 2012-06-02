@@ -34,7 +34,7 @@ int new_mapped_log(const char *name, int id, MappedLog *log) {
 
     log->fd = open(path, O_RDWR|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
     if (log->fd == -1) {
-        perror("creat");
+        perror("creat in new_mapped_log");
         exit(1);
     }
 #ifdef DEBUG
@@ -42,18 +42,18 @@ int new_mapped_log(const char *name, int id, MappedLog *log) {
 #endif
 
     if (ftruncate(log->fd, LOG_BUFFER_SIZE) == -1) {
-        perror("ftruncate");
+        perror("ftruncate in new_mapped_log");
         exit(1);
     }
 
     log->buf = mmap(0, LOG_BUFFER_SIZE, PROT_WRITE|PROT_READ, MAP_SHARED, log->fd, 0);
     if (log->buf == MAP_FAILED) {
-        perror("mmap");
+        perror("mmap in new_mapped_log");
         exit(1);
     }
     log->end = log->buf + LOG_BUFFER_SIZE;
     if (madvise(log->buf, LOG_BUFFER_SIZE, MADV_SEQUENTIAL) == -1) {
-        perror("madvise");
+        perror("madvise in new_mapped_log");
         exit(1);
     }
     return 0;
@@ -62,7 +62,7 @@ int new_mapped_log(const char *name, int id, MappedLog *log) {
 int enlarge_mapped_log(MappedLog *log) {
     struct stat sb;
     if (fstat(log->fd, &sb) == -1) {
-        perror("fstat");
+        perror("fstat in enlarge_mapped_log");
         exit(1);
     }
     off_t original_size = sb.st_size;
@@ -72,19 +72,19 @@ int enlarge_mapped_log(MappedLog *log) {
     fprintf(stderr, "fd %d unmap %p ", log->fd, log->buf);
 #endif
     if (munmap(log->end - LOG_BUFFER_SIZE, LOG_BUFFER_SIZE) == -1) {
-        perror("munmap");
+        perror("munmap in enlarge_mapped_log");
         exit(1);
     }
     
     if (ftruncate(log->fd, original_size + LOG_BUFFER_SIZE) == -1) {
-        perror("ftruncate");
+        perror("ftruncate in enlarge_mapped_log");
         exit(1);
     }
 
     log->buf = mmap(0, LOG_BUFFER_SIZE, PROT_WRITE|PROT_READ, MAP_SHARED,
         log->fd, original_size);
     if (log->buf == MAP_FAILED) {
-        perror("mmap");
+        perror("mmap in enlarge_mapped_log");
         exit(1);
     }
     log->end = log->buf + LOG_BUFFER_SIZE;
@@ -95,7 +95,7 @@ int enlarge_mapped_log(MappedLog *log) {
 #endif
 
     if (madvise(log->buf, LOG_BUFFER_SIZE, MADV_SEQUENTIAL) == -1) {
-        perror("madvise");
+        perror("madvise in enlarge_mapped_log");
         exit(1);
     }
     return 0;
@@ -135,4 +135,23 @@ int unmap_log(void *start, off_t size) {
         return -1;
     }
     return 0;
+}
+
+void *create_mapped_file(const char *path, unsigned long size) {
+    int fd = open(path, O_RDWR|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+    if (fd == -1) {
+        perror("open in map_fixed_size_file");
+        exit(1);
+    }
+
+    if (ftruncate(fd, size) == -1) {
+        perror("ftruncate in map_fixed_size_file");
+        exit(1);
+    }
+    void *buf = mmap(0, size, PROT_WRITE|PROT_READ, MAP_SHARED, fd, 0);
+    if (buf == MAP_FAILED) {
+        perror("mmap in map_fixed_size_file");
+        exit(1);
+    }
+    return buf;
 }
