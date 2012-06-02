@@ -50,7 +50,7 @@ typedef struct {
 } WaitMemop;
 
 WaitMemop *wait_memop;
-DEFINE_TLS_GLOBAL(int *, wait_memop_idx);
+int *wait_memop_idx;
 
 const int INIT_LOG_CNT = 1000;
 
@@ -106,14 +106,13 @@ WaitMemopLog *next_wait_memop(int objid, int version) {
     // Search if there's any read get the current version.
     DPRINTF("T%d W%d searching wait for obj %d @%d wait_memop_idx[%d] %d\n",
             tid, TLS(memop), objid, version, objid, TLS(wait_memop_idx)[objid]);
-    for (i = TLS(wait_memop_idx)[objid]; i <= wait_memop[objid].size &&
+    for (i = wait_memop_idx[objid]; i <= wait_memop[objid].size &&
             (version > log[i].version || log[i].tid == tid); ++i);
 
     if (i <= wait_memop[objid].size && version == log[i].version) {
-        TLS(wait_memop_idx)[objid] = i + 1;
+        wait_memop_idx[objid] = i + 1;
         return &log[i];
     }
-    TLS(wait_memop_idx)[objid] = i;
     DPRINTF("T%d W%d No RD @%d for obj %d found wait_memop_idx[%d] = %d\n",
         tid, TLS(memop), version, objid, objid, i);
     return NULL;
@@ -121,7 +120,7 @@ WaitMemopLog *next_wait_memop(int objid, int version) {
 
 void mem_init(int nthr) {
     load_wait_memop_log();
-    ALLOC_TLS_GLOBAL(nthr, wait_memop_idx);
+    wait_memop_idx = calloc_check(NOBJS, sizeof(*wait_memop_idx), "wait_memop_idx[tid]");
     ALLOC_TLS_GLOBAL(nthr, wait_version_log);
     ALLOC_TLS_GLOBAL(nthr, wait_version);
     ALLOC_TLS_GLOBAL(nthr, no_more_wait_version);
@@ -133,8 +132,6 @@ void mem_init(int nthr) {
 void mem_init_thr(int tid) {
     // Must set tid before using the tid_key
     pthread_setspecific(tid_key, (void *)(long)tid);
-
-    TLS(wait_memop_idx) = calloc_check(NOBJS, sizeof(*TLS(wait_memop_idx)), "wait_memop_idx[tid]");
 
     TLS(wait_version_log) = open_log("log/version", tid);
 
