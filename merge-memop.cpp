@@ -1,3 +1,4 @@
+#include "mem.h"
 #include "log.h"
 #include <cstdio>
 #include <sys/stat.h>
@@ -61,6 +62,9 @@ static void merge_memop(vector<MappedLog> &log, int nthr) {
 	// we need to add a tid record to each log entry
 	total_size += total_size / sizeof(WaitMemop) * sizeof(int); 
 	char *outbuf = (char *)create_mapped_file("log/memop", total_size);
+
+	int *indexbuf = (int *)create_mapped_file("log/memop-index", NOBJS * sizeof(int));
+
     DPRINTF("Open sorted log done\n");
 
 	WaitMemop wop;
@@ -70,31 +74,41 @@ static void merge_memop(vector<MappedLog> &log, int nthr) {
 	}
     DPRINTF("Open sorted log done\n");
 
-#ifdef DEBUG
-    int prev_id = -1, prev_version = -1;
-    int cnt = 0;
-#endif
+    int prev_id = -1, cnt = 0;
 	while (! pq.empty()) {
 		QueEnt qe = pq.top();
 		pq.pop();
 
-		// DPRINTF("T%d %d %d %d\n", qe.tid, qe.wop.objid, qe.wop.version, qe.wop.memop);
-
 #ifdef DEBUG
-		cnt++;
+		static int prev_version = -1;
+		// DPRINTF("T%d %d %d %d\n", qe.tid, qe.wop.objid, qe.wop.version, qe.wop.memop);
 		assert(qe.wop.objid >= prev_id);
 		if (qe.wop.objid != prev_id) {
 			prev_version = -1;
 		} else {
 			assert(qe.wop.version >= prev_version);
 		}
-		prev_id = qe.wop.objid;
 		prev_version = qe.wop.version;
 #endif
+
+		// Write object index if needed. Previous id has index written.
+		if (prev_id != qe.wop.objid) {
+			// Write index as -1 for objid in the range of (previd + 1, curid - 1)
+			for (int i = prev_id + 1; i < qe.wop.objid; ++i) {
+				DPRINTF("index for obj %d is %x\n", i, -1);
+				*indexbuf++ = -1;
+			}
+			*indexbuf++ = cnt;
+			DPRINTF("index for obj %d is %x\n", qe.wop.objid, cnt);
+		}
+		prev_id = qe.wop.objid;
+
 		memcpy(outbuf, &qe.wop, sizeof(WaitMemop));
 		*(int *)(outbuf + sizeof(WaitMemop)) = qe.tid;
 		outbuf += sizeof(WaitMemop) + sizeof(int);
+
 		enqueue_next_waitmemop(pq, log[qe.tid], wop, qe.tid);	
+		cnt++;
 	}
 	DPRINTF("total %d\n", cnt);
 }

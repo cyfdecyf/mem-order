@@ -1,4 +1,5 @@
 log/*-[0-9]
+log/memop*
 .*.d
 .*.dpp
 infer
@@ -7,5 +8,6 @@ play
 mem-test
 dummy-acc
 reorder-memop
+merge-memop
 result-*
 *sublime-workspace
