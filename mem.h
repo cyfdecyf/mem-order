@@ -15,8 +15,6 @@
 // #  define DEBUG
 #endif
 
-#include "debug.h"
-
 // Shared object size configured to 8 to ease output
 #define OBJ_SIZE 8
 #define NOBJS 10

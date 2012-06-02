@@ -5,7 +5,7 @@ CXXFLAGS = -g -O3 -Wall
 
 LDFLAGS = -lpthread
 MEMOBJS = mem.o log.o
-TARG = record play reorder-memop
+TARG = record play reorder-memop merge-memop
 TEST = mem-test
 
 SRC = mem.c mem-main.c
@@ -29,6 +29,9 @@ infer: infer.o
 	cp $@ log/
 
 reorder-memop: reorder-memop.o log.o
+	$(call cxx-link-command)
+
+merge-memop: merge-memop.o log.o
 	$(call cxx-link-command)
 
 test: $(TEST)

@@ -1,3 +1,4 @@
+#include "debug.h"
 #include "mem.h"
 #include "log.h"
 #include "spinlock.h"

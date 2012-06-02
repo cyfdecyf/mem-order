@@ -6,6 +6,6 @@ record
 play
 mem-test
 dummy-acc
-reorder-memoplog
+reorder-memop
 result-*
 *sublime-workspace

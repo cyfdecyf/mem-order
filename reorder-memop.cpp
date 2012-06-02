@@ -1,7 +1,7 @@
 #include "mem.h"
 #include "log.h"
-#include <assert.h>
-#include <stdio.h>
+#include <cassert>
+#include <cstdio>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -12,6 +12,9 @@
 #include <vector>
 #include <iterator>
 using namespace std;
+
+#define DEBUG
+#include "debug.h"
 
 enum { BUFFER_ELEMENT_N = LOG_BUFFER_SIZE / (sizeof(int) * 3) };
 
@@ -24,7 +27,7 @@ struct WaitMemop {
 
 typedef vector< vector<WaitMemop> > WaitMemopAll;
 
-long load_wait_memop_log(WaitMemopAll &all, int tid) {
+static long load_wait_memop_log(WaitMemopAll &all, int tid) {
     MappedLog log;
     open_mapped_log("log/memop", tid, &log);
 
@@ -59,11 +62,11 @@ skip_padding:
     }
     unmap_log(log.buf, log.end - log.buf);
 
-    DPRINTF("log loaded\n");
+    DPRINTF("log loaded, total %ld\n", total);
     return total;
 }
 
-void write_out_memop_log(const WaitMemopAll &all, long total, int tid) {
+static void write_out_memop_log(const WaitMemopAll &all, long total, int tid) {
     char path[MAX_PATH_LEN];
     logpath(path, "log/sorted-memop", tid);
 
@@ -73,16 +76,23 @@ void write_out_memop_log(const WaitMemopAll &all, long total, int tid) {
     WaitMemopAll::const_iterator objit;
     for (objit = all.begin(); objit != all.end(); ++objit) {
 #ifdef DEBUG
-        int prev_version = -1;
+        printf("using debug code\n");
+        int prev_version = -1, prev_objid = -1;
         for (vector<WaitMemop>::const_iterator it = objit->begin();
             it != objit->end(); ++it) {
             assert(it->version >= prev_version);
+            assert(it->objid >= prev_objid);
             prev_version = it->version;
+            prev_objid = it->objid;
+
+            *buf = *it;
+            ++buf;
         }
-#endif
+#else
         const WaitMemop *st = &(*objit)[0];
         memcpy(buf, st, sizeof(WaitMemop) * objit->size());
         buf += objit->size();
+#endif
     }
 }
 
