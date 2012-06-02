@@ -1,5 +1,4 @@
 #include "log.h"
-#include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -8,15 +7,6 @@
 #include <assert.h>
 
 // #define DEBUG
-
-#define MAX_PATH_LEN 256
-
-static inline void logpath(char *buf, const char *name, long id) {
-    if (snprintf(buf, MAX_PATH_LEN, "%s-%ld", name, id) >= MAX_PATH_LEN) {
-        printf("Path name too long\n");
-        exit(1);
-    }
-}
 
 static FILE *handle_log(const char *name, long id, const char *mode) {
     char path[MAX_PATH_LEN];
@@ -56,12 +46,6 @@ int new_mapped_log(const char *name, int id, MappedLog *log) {
         exit(1);
     }
 
-    struct stat sb;
-    if (fstat(log->fd, &sb) == -1) {
-        perror("fstat");
-        exit(1);
-    }
-    assert(sb.st_size == LOG_BUFFER_SIZE);
     log->buf = mmap(0, LOG_BUFFER_SIZE, PROT_WRITE|PROT_READ, MAP_SHARED, log->fd, 0);
     if (log->buf == MAP_FAILED) {
         perror("mmap");
@@ -82,9 +66,10 @@ int enlarge_mapped_log(MappedLog *log) {
         exit(1);
     }
     off_t original_size = sb.st_size;
+    assert(original_size % LOG_BUFFER_SIZE == 0);
     
 #ifdef DEBUG
-    fprintf(stderr, "fd %d unmap %p ", fd, buf);
+    fprintf(stderr, "fd %d unmap %p ", log->fd, log->buf);
 #endif
     if (munmap(log->end - LOG_BUFFER_SIZE, LOG_BUFFER_SIZE) == -1) {
         perror("munmap");
@@ -103,14 +88,51 @@ int enlarge_mapped_log(MappedLog *log) {
         exit(1);
     }
     log->end = log->buf + LOG_BUFFER_SIZE;
+    assert(*((int *)log->buf) == 0);
 #ifdef DEBUG
-    fprintf(stderr, "new buf: %p truncate to %lld bytes\n", buf,
+    fprintf(stderr, "new buf: %p truncate to %lld bytes\n", log->buf,
         (long long int)(original_size + LOG_BUFFER_SIZE));
 #endif
 
     if (madvise(log->buf, LOG_BUFFER_SIZE, MADV_SEQUENTIAL) == -1) {
         perror("madvise");
         exit(1);
+    }
+    return 0;
+}
+
+int open_mapped_log(const char *name, int id, MappedLog *log) {
+    char path[MAX_PATH_LEN];
+    logpath(path, name, id);
+
+    log->fd = open(path, O_RDONLY);
+    if (log->fd == -1) {
+        perror("open mapped log");
+        exit(1);
+    }
+
+    struct stat sb;
+    if (fstat(log->fd, &sb) == -1) {
+        perror("fstat");
+        exit(1);
+    }
+    log->buf = mmap(0, sb.st_size, PROT_READ, MAP_PRIVATE, log->fd, 0);
+    if (log->buf == MAP_FAILED) {
+        perror("mmap");
+        exit(1);
+    }
+    log->end = log->buf + sb.st_size;
+    if (madvise(log->buf, sb.st_size, MADV_SEQUENTIAL) == -1) {
+        perror("madvise");
+        exit(1);
+    }
+    return 1;
+}
+
+int unmap_log(void *start, off_t size) {
+    if (munmap(start, size) == -1) {
+        perror("munmap");
+        return -1;
     }
     return 0;
 }

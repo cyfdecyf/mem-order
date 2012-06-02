@@ -63,19 +63,28 @@ void mem_init_thr(int tid) {
 }
 
 #ifdef BINARY_LOG
+
+static inline int *next_version_log(MappedLog *log) {
+    return (int *)next_log_entry(log, 2 * sizeof(int));
+}
+
 static inline void log_wait_version(int tid, int current_version) {
     MappedLog *log = &TLS(wait_version_log);
 
-    int *start = (int *)next_log_start(log, 2 * sizeof(int));
+    int *start = next_version_log(log);
 
     *(start + 0) = TLS(memop);
     *(start + 1) = current_version / 2;
 }
 
+static inline int *next_memop_log(MappedLog *log) {
+    return (int *)next_log_entry(log, 3 * sizeof(int));
+}
+
 static inline void log_other_wait_memop(int tid, int objid, last_objinfo_t *lastobj) {
     MappedLog *log = &TLS(wait_memop_log);
 
-    int *start = (int *)next_log_start(log, 3 * sizeof(int));
+    int *start = next_memop_log(log);
 
     *(start + 0) = objid;
     *(start + 1) = lastobj->version / 2;
@@ -205,10 +214,13 @@ void mem_finish_thr() {
     }
 #ifdef BINARY_LOG
     // Mark the end of log
-    int *next = (int *)next_log_start(&TLS(wait_memop_log), sizeof(int));            
+    int *next = next_version_log(&TLS(wait_version_log));
     *next = -1;
 
-    next = (int *)next_log_start(&TLS(wait_version_log), sizeof(int));
+    next = next_memop_log(&TLS(wait_memop_log));
     *next = -1;
+
+    unmap_log((void *)TLS(wait_memop_log).end - LOG_BUFFER_SIZE, LOG_BUFFER_SIZE);
+    unmap_log((void *)TLS(wait_version_log).end - LOG_BUFFER_SIZE, LOG_BUFFER_SIZE);
 #endif
 }

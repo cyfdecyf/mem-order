@@ -5,7 +5,7 @@ CXXFLAGS = -g -O3 -Wall
 
 LDFLAGS = -lpthread
 MEMOBJS = mem.o log.o
-TARG = record play infer
+TARG = record play processlog
 TEST = mem-test
 
 SRC = mem.c mem-main.c
@@ -27,6 +27,9 @@ mem-test: mem-test.o mem.o
 infer: infer.o
 	$(call cc-link-command)
 	cp $@ log/
+
+processlog: processlog.o log.o
+	$(call cxx-link-command)
 
 test: $(TEST)
 

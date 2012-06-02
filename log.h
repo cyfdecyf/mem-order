@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include <stdlib.h>
 #include <stdio.h>
 
 FILE *new_log(const char *name, long id);
@@ -21,13 +22,25 @@ typedef struct {
 int new_mapped_log(const char *name, int id, MappedLog *log);
 int enlarge_mapped_log(MappedLog *log);
 
-static inline char *next_log_start(MappedLog *log, int entry_size) {
+int open_mapped_log(const char *name, int id, MappedLog *log);
+
+int unmap_log(void *start, off_t size);
+
+static inline char *next_log_entry(MappedLog *log, int entry_size) {
     if ((log->buf + entry_size) > log->end) {
         enlarge_mapped_log(log);
     }
     char *start = log->buf;
     log->buf += entry_size;
     return start;
+}
+
+#define MAX_PATH_LEN 256
+static inline void logpath(char *buf, const char *name, long id) {
+    if (snprintf(buf, MAX_PATH_LEN, "%s-%ld", name, id) >= MAX_PATH_LEN) {
+        printf("Path name too long\n");
+        exit(1);
+    }
 }
 
 #ifdef __cplusplus
