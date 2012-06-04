@@ -63,7 +63,8 @@ static void merge_memop(vector<MappedLog> &log, int nthr) {
 	total_size += total_size / sizeof(WaitMemop) * sizeof(int); 
 	char *outbuf = (char *)create_mapped_file("log/memop", total_size);
 
-	int *indexbuf = (int *)create_mapped_file("log/memop-index", NOBJS * sizeof(int));
+	// index buf contains index for an object's log and log entry count
+	int *indexbuf = (int *)create_mapped_file("log/memop-index", NOBJS * sizeof(int) * 2);
 
     DPRINTF("Open sorted log done\n");
 
@@ -74,7 +75,7 @@ static void merge_memop(vector<MappedLog> &log, int nthr) {
 	}
     DPRINTF("Open sorted log done\n");
 
-    int prev_id = -1, cnt = 0;
+    int prev_id = -1, cnt = 0, prev_cnt = 0;;
 	while (! pq.empty()) {
 		QueEnt qe = pq.top();
 		pq.pop();
@@ -93,15 +94,22 @@ static void merge_memop(vector<MappedLog> &log, int nthr) {
 
 		// Write object index if needed. Previous id has index written.
 		if (prev_id != qe.wop.objid) {
+			if (prev_id != -1) {
+				// Write out previous object's log entry count
+				*indexbuf++ = cnt - prev_cnt;
+			}
 			// Write index as -1 for objid in the range of (previd + 1, curid - 1)
 			for (int i = prev_id + 1; i < qe.wop.objid; ++i) {
-				DPRINTF("index for obj %d is %x\n", i, -1);
-				*indexbuf++ = -1;
+				DPRINTF("index for obj %d is %d\n", i, -1);
+				*indexbuf++ = -1; // index
+				*indexbuf++ = 0; // size
 			}
+			// Write out current object's index
 			*indexbuf++ = cnt;
-			DPRINTF("index for obj %d is %x\n", qe.wop.objid, cnt);
+			prev_cnt = cnt;
+			prev_id = qe.wop.objid;
+			DPRINTF("index for obj %d is %d\n", qe.wop.objid, cnt);
 		}
-		prev_id = qe.wop.objid;
 
 		memcpy(outbuf, &qe.wop, sizeof(WaitMemop));
 		*(int *)(outbuf + sizeof(WaitMemop)) = qe.tid;
@@ -110,6 +118,7 @@ static void merge_memop(vector<MappedLog> &log, int nthr) {
 		enqueue_next_waitmemop(pq, log[qe.tid], wop, qe.tid);	
 		cnt++;
 	}
+	*indexbuf = cnt - prev_cnt;
 	DPRINTF("total %d\n", cnt);
 }
 

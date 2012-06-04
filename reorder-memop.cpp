@@ -76,7 +76,6 @@ static void write_out_memop_log(const WaitMemopAll &all, long total, int tid) {
     WaitMemopAll::const_iterator objit;
     for (objit = all.begin(); objit != all.end(); ++objit) {
 #ifdef DEBUG
-        printf("using debug code\n");
         int prev_version = -1, prev_objid = -1;
         for (vector<WaitMemop>::const_iterator it = objit->begin();
             it != objit->end(); ++it) {
