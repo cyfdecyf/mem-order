@@ -190,7 +190,7 @@ WaitMemop *next_wait_memop(int objid, int version) {
     int i;
     WaitMemop *log = wait_memop_log[objid].log;
     // Search if there's any read get the current version.
-    DPRINTF("T%d W%d wait memop search for obj %d @%d wait_memop_idx[%d] %d\n",
+    DPRINTF("T%d W%d B%d wait memop search for X @%d wait_memop_idx[%d] = %d\n",
             tid, TLS(memop), objid, version, objid, wait_memop_idx[objid]);
     for (i = wait_memop_idx[objid]; i <= wait_memop_log[objid].size &&
             (version > log[i].version || log[i].tid == tid); ++i);
@@ -199,8 +199,8 @@ WaitMemop *next_wait_memop(int objid, int version) {
         wait_memop_idx[objid] = i + 1;
         return &log[i];
     }
-    DPRINTF("T%d W%d wait memop No RD @%d for obj %d found wait_memop_idx[%d] = %d\n",
-        tid, TLS(memop), version, objid, objid, i);
+    DPRINTF("T%d W%d B%d wait memop No X @%d found wait_memop_idx[%d] = %d\n",
+        tid, TLS(memop), objid, version, objid, i);
     return NULL;
 }
 
@@ -233,17 +233,17 @@ void mem_init_thr(int tid) {
     next_wait_version_log();
 }
 
-static void wait_version(int objid) {
+static void wait_version(int objid, const char op) {
     TLS_tid();
 
     if (!TLS(no_more_wait_version) && TLS(memop) == TLS(wait_version).memop) {
         // Wait version reaches the recorded value
-        DPRINTF("T%d X%d wait version obj %d @%d->%d\n", tid, TLS(memop), 
+        DPRINTF("T%d %c%d B%d wait version @%d->%d\n", tid, op, TLS(memop),
             objid, obj_version[objid], TLS(wait_version).version);
         while (obj_version[objid] < TLS(wait_version).version) {
             cpu_relax();
         }
-        DPRINTF("T%d X%d wait version done\n", tid, TLS(memop));
+        DPRINTF("T%d %c%d B%d wait version done\n", tid, op, TLS(memop), objid);
 
         if (obj_version[objid] != TLS(wait_version).version) {
             fprintf(stderr, "T%d obj_version[%d] = %d, wait_version = %d\n",
@@ -258,7 +258,7 @@ int32_t mem_read(int tid, int32_t *addr) {
     int val;
     int objid = obj_id(addr);
 
-    wait_version(objid);
+    wait_version(objid, 'R');
 
     val = *addr;
     TLS(memop)++;
@@ -269,17 +269,17 @@ int32_t mem_read(int tid, int32_t *addr) {
 void mem_write(int tid, int32_t *addr, int32_t val) {
     int objid = obj_id(addr);
 
-    wait_version(objid);
+    wait_version(objid, 'W');
 
     // Wait memory accesses that happen at this version.
     WaitMemop *log;
     while ((log = next_wait_memop(objid, obj_version[objid])) != NULL) {
-        DPRINTF("T%d W%d wait memop T%d R%d on obj %d\n", tid, TLS(memop),
-            log->tid, log->memop, objid);
+        DPRINTF("T%d W%d B%d wait memop T%d X%d\n", tid, TLS(memop), objid,
+            log->tid, log->memop);
         while (memop_tls[log->tid] <= log->memop) {
             cpu_relax();
         }
-        DPRINTF("T%d W%d wait memop done\n", tid, TLS(memop));
+        DPRINTF("T%d W%d B%d wait memop done\n", tid, TLS(memop), objid);
     }
 
     *addr = val;
