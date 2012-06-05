@@ -23,6 +23,15 @@ function process_binary_log() {
     ./merge-memop $nthr
 }
 
+function process_log() {
+    file log/memop-0 | grep 'ASCII' > /dev/null
+    if [ $? == 0 ]; then
+        process_text_log
+    else
+        process_binary_log
+    fi
+}
+
 if [[ $# > 2 || $# == 0 ]]; then
     echo "Usage: run.sh <nthr> [ntimes]"
     exit 1
@@ -37,17 +46,17 @@ fi
 
 for i in `seq 1 $ntimes`; do
     rm -f log/memop* log/version* log/sorted-*
+    cecho "$i iteration"
     cecho "Record with $nthr threads   Result:=========="
-    ./record $nthr | tee result-record
+    ./record $nthr 2>debug-record > result-record
     cecho "End result==============================="
 
     cecho "Log processing ..."
 
-    process_binary_log
-    #process_text_log
+    process_log
 
     cecho "Replay with $nthr threads    Result:========="
-    ./play $nthr | tee result-play
+    ./play $nthr 2>debug-play > result-play
     cecho "End result==============================="
 
     diff result-record result-play
