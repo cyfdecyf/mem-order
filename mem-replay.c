@@ -26,8 +26,8 @@ static inline void next_wait_version_log() {
     TLS_tid();
     MappedLog *log = &TLS(wait_version_log);
 
-    if (*log->buf == -1) {
-        DPRINTF("T%d no more wait version\n", tid);
+    if (*(int *)log->buf == -1) {
+        DPRINTF("T%d no more wait version, cnt = %d\n", tid, version_log_cnt);
         TLS(no_more_wait_version) = 1;
         return;
     }
