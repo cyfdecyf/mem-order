@@ -10,7 +10,7 @@
 #include <sstream>
 using namespace std;
 
-#define DEBUG
+// #define DEBUG
 #include "debug.h"
 
 struct WaitMemop {

@@ -13,7 +13,7 @@
 #include <iterator>
 using namespace std;
 
-#define DEBUG
+// #define DEBUG
 #include "debug.h"
 
 enum { BUFFER_ELEMENT_N = LOG_BUFFER_SIZE / (sizeof(int) * 3) };

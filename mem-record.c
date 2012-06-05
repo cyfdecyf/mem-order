@@ -1,9 +1,11 @@
-#include "debug.h"
 #include "mem.h"
 #include "log.h"
 #include "spinlock.h"
 #include <stdio.h>
 #include <stdlib.h>
+
+#define DEBUG
+#include "debug.h"
 
 typedef struct {
     /* Version is like write counter */

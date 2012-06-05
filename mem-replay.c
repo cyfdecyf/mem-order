@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#define DEBUG
+// #define DEBUG
 #include "debug.h"
 
 int *obj_version;
