@@ -93,11 +93,13 @@ static void merge_memop(vector<MappedLog> &log, int nthr) {
 		if (prev_id != qe.wop.objid) {
 			if (prev_id != -1) {
 				// Write out previous object's log entry count
-				*indexbuf++ = cnt - prev_cnt;
+				*indexbuf = cnt - prev_cnt;
+				DPRINTF("obj %d index %d log entry count %d\n", prev_id, prev_cnt, *indexbuf);
+				indexbuf++;
 			}
 			// Write index as -1 for objid in the range of (previd + 1, curid - 1)
 			for (int i = prev_id + 1; i < qe.wop.objid; ++i) {
-				DPRINTF("index for obj %d is %d\n", i, -1);
+				DPRINTF("index for obj %d is %d, empty log\n", i, -1);
 				*indexbuf++ = -1; // index
 				*indexbuf++ = 0; // size
 			}
@@ -105,7 +107,6 @@ static void merge_memop(vector<MappedLog> &log, int nthr) {
 			*indexbuf++ = cnt;
 			prev_cnt = cnt;
 			prev_id = qe.wop.objid;
-			DPRINTF("index for obj %d is %d\n", qe.wop.objid, cnt);
 		}
 
 		memcpy(outbuf, &qe.wop, sizeof(WaitMemop));
