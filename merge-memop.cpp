@@ -118,8 +118,17 @@ static void merge_memop(vector<MappedLog> &log, int nthr) {
 		enqueue_next_waitmemop(pq, log[qe.tid], wop, qe.tid);	
 		cnt++;
 	}
+	// Last object's log size
 	*indexbuf = cnt - prev_cnt;
-	DPRINTF("total %d\n", cnt);
+
+	if (prev_id != NOBJS - 1) {
+		for (int i = prev_id + 1; i < NOBJS; ++i) {
+			*indexbuf++ = -1;
+			*indexbuf++ = 0;
+		}
+	}
+	DPRINTF("obj %d index %d log entry count %d\n", prev_id, prev_cnt, *indexbuf);
+	DPRINTF("total #wait_memop %d\n", cnt);
 }
 
 int main(int argc, char const *argv[]) {
