@@ -20,6 +20,7 @@ function process_binary_log() {
     for i in `seq 0 $maxid`; do
         ./reorder-memop $i
     done
+    ./merge-memop $nthr
 }
 
 if [[ $# > 2 || $# == 0 ]]; then
@@ -43,7 +44,7 @@ for i in `seq 1 $ntimes`; do
     cecho "Log processing ..."
 
     process_binary_log
-    exit
+    #process_text_log
 
     cecho "Replay with $nthr threads    Result:========="
     ./play $nthr | tee result-play

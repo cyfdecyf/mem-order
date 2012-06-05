@@ -220,8 +220,5 @@ void mem_finish_thr() {
 
     next = next_memop_log(&TLS(wait_memop_log));
     *next = -1;
-
-    unmap_log((void *)TLS(wait_memop_log).end - LOG_BUFFER_SIZE, LOG_BUFFER_SIZE);
-    unmap_log((void *)TLS(wait_version_log).end - LOG_BUFFER_SIZE, LOG_BUFFER_SIZE);
 #endif
 }
