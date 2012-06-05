@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+# For dumping memop log to work, it must contain object id information.
+
 SIZE_TBL = {
   "memop" => 4,
   "memop-index" => 2,

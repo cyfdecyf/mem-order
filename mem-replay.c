@@ -56,7 +56,12 @@ static inline void next_wait_version_log() {
 }
 #endif // BINARY_LOG
 
-typedef struct WaitMemop WaitMemop;
+typedef struct {
+    // Order of field must match with binary log
+    int version;
+    int memop;
+    int tid;
+} WaitMemop;
 
 typedef struct {
     WaitMemop *log;
@@ -68,14 +73,6 @@ WaitMemopLog *wait_memop_log;
 int *wait_memop_idx;
 
 #ifdef BINARY_LOG
-
-struct WaitMemop {
-    // Order of field must match with log
-    int objid;
-    int version;
-    int memop;
-    int tid;
-};
 
 static void load_wait_memop_log() {
     MappedLog memop_log, index_log;
@@ -112,22 +109,11 @@ static void load_wait_memop_log() {
                 log[j].memop, log[j].tid);
         }
 #endif
-
-        // TODO Remove object id in the merged log
-        if (i > 1 && wait_memop_log[i - 1].log) {
-            assert(wait_memop_log[i - 1].log[0].objid + 1== wait_memop_log[i].log[0].objid);
-        }
     }
     unmap_log(index_log.buf, index_log.end - index_log.buf);
 }
 
 #else // BINARY_LOG
-
-struct WaitMemop {
-    int tid;
-    int version;
-    int memop;
-};
 
 enum { INIT_LOG_CNT = 1000 };
 

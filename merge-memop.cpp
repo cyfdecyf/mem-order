@@ -109,9 +109,20 @@ static void merge_memop(vector<MappedLog> &log, int nthr) {
 			prev_id = qe.wop.objid;
 		}
 
+		int *outp = (int *)outbuf;
+		*outp++ = qe.wop.version;
+		*outp++ = qe.wop.memop;
+		*outp++ = qe.tid;
+		outbuf = (char *)outp;
+
+		// The following code dumps the object id in the log. But with object index,
+		// this is not needed. Keep it here because this is useful info for manual inspecting
+		// the log.
+		/*
 		memcpy(outbuf, &qe.wop, sizeof(WaitMemop));
 		*(int *)(outbuf + sizeof(WaitMemop)) = qe.tid;
 		outbuf += sizeof(WaitMemop) + sizeof(int);
+		*/
 
 		enqueue_next_waitmemop(pq, log[qe.tid], wop, qe.tid);	
 		cnt++;
