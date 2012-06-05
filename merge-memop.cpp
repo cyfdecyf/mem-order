@@ -66,14 +66,11 @@ static void merge_memop(vector<MappedLog> &log, int nthr) {
 	// index buf contains index for an object's log and log entry count
 	int *indexbuf = (int *)create_mapped_file("log/memop-index", NOBJS * sizeof(int) * 2);
 
-    DPRINTF("Open sorted log done\n");
-
 	WaitMemop wop;
 	for (int i = 0; i < nthr; ++i) {
 		enqueue_next_waitmemop(pq, log[i], wop, i);
-		DPRINTF("Init T%d %d %d %d\n", i, wop.objid, wop.version, wop.memop);
+		DPRINTF("Init Queue add T%d %d %d %d\n", i, wop.objid, wop.version, wop.memop);
 	}
-    DPRINTF("Open sorted log done\n");
 
     int prev_id = -1, cnt = 0, prev_cnt = 0;;
 	while (! pq.empty()) {
@@ -143,9 +140,12 @@ int main(int argc, char const *argv[]) {
     istringstream nthrs(argv[1]);
     nthrs >> nthr;
 
-    vector<MappedLog> log(nthr);
+    vector<MappedLog> log;
+    MappedLog l;
     for (int i = 0; i < nthr; ++i) {
-    	open_mapped_log("log/sorted-memop", i, &log[i]);
+    	if (open_mapped_log("log/sorted-memop", i, &l) == 0) {
+    		log.push_back(l);
+    	}
     }
     merge_memop(log, nthr);
 

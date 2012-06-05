@@ -22,7 +22,9 @@ typedef struct {
 int new_mapped_log(const char *name, int id, MappedLog *log);
 int enlarge_mapped_log(MappedLog *log);
 
+// The following two function return 0 on success.
 int open_mapped_log(const char *name, int id, MappedLog *log);
+int open_mapped_log_path(const char *path, MappedLog *log);
 
 int unmap_log(void *start, off_t size);
 

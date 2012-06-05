@@ -101,14 +101,10 @@ int enlarge_mapped_log(MappedLog *log) {
     return 0;
 }
 
-int open_mapped_log(const char *name, int id, MappedLog *log) {
-    char path[MAX_PATH_LEN];
-    logpath(path, name, id);
-
+int open_mapped_log_path(const char *path, MappedLog *log) {
     log->fd = open(path, O_RDONLY);
     if (log->fd == -1) {
-        perror("open mapped log");
-        exit(1);
+        return log->fd;
     }
 
     struct stat sb;
@@ -126,7 +122,14 @@ int open_mapped_log(const char *name, int id, MappedLog *log) {
         perror("madvise");
         exit(1);
     }
-    return 1;
+    return 0;
+}
+
+int open_mapped_log(const char *name, int id, MappedLog *log) {
+    char path[MAX_PATH_LEN];
+    logpath(path, name, id);
+
+    return open_mapped_log_path(path, log);
 }
 
 int unmap_log(void *start, off_t size) {

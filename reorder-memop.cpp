@@ -109,7 +109,8 @@ int main(int argc, char const *argv[]) {
 
     WaitMemopAll all(NOBJS);
     long total = load_wait_memop_log(all, tid);
-    write_out_memop_log(all, total, tid);
+    if (total != 0)
+        write_out_memop_log(all, total, tid);
 
     return 0;
 }
