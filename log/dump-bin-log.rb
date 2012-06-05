@@ -17,12 +17,19 @@ end
 logfile = ARGV[0]
 logsize = getsize(logfile)
 
+idx = 0
+prev_id = -1
 File.open(logfile) do |f|
   while true
     s = f.read(logsize * 4)
     break if s == nil
     unpacked = s.unpack("i" * logsize)
     break if unpacked[0] == -1
-    p unpacked
+    if logfile == "memop" && unpacked[0] != prev_id
+      idx = 0 
+      prev_id = unpacked[0]
+    end
+    print "#{idx} #{unpacked.inspect}\n"
+    idx += 1
   end
 end
