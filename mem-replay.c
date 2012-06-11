@@ -17,7 +17,6 @@ typedef struct {
     int version;
 } WaitVersion;
 DEFINE_TLS_GLOBAL(WaitVersion, wait_version);
-DEFINE_TLS_GLOBAL(char, no_more_wait_version);
 
 #ifdef BINARY_LOG
 DEFINE_TLS_GLOBAL(MappedLog, wait_version_log);
@@ -28,7 +27,7 @@ static inline void next_wait_version_log() {
 
     if (*(int *)log->buf == -1) {
         DPRINTF("T%d no more wait version, cnt = %d\n", tid, version_log_cnt);
-        TLS(no_more_wait_version) = 1;
+        TLS(wait_version).memop = -1;
         return;
     }
 
@@ -51,7 +50,6 @@ static inline void next_wait_version_log() {
     if (fscanf(TLS(wait_version_log), "%d %d", &ent->version,
             &ent->memop) != 2) {
         // fprintf(stderr, "No more wait version log for thread %d\n", tid);
-        TLS(no_more_wait_version) = 1;
     }
 }
 #endif // BINARY_LOG
@@ -195,7 +193,6 @@ void mem_init(int nthr) {
     wait_memop_idx = calloc_check(NOBJS, sizeof(*wait_memop_idx), "wait_memop_idx[tid]");
     ALLOC_TLS_GLOBAL(nthr, wait_version_log);
     ALLOC_TLS_GLOBAL(nthr, wait_version);
-    ALLOC_TLS_GLOBAL(nthr, no_more_wait_version);
     ALLOC_TLS_GLOBAL(nthr, memop);
 
     obj_version = calloc_check(NOBJS, sizeof(*obj_version), "Can't allocate obj_version");
@@ -222,7 +219,7 @@ void mem_init_thr(int tid) {
 static void wait_version(int objid, const char op) {
     TLS_tid();
 
-    if (!TLS(no_more_wait_version) && TLS(memop) == TLS(wait_version).memop) {
+    if (TLS(memop) == TLS(wait_version).memop) {
         // Wait version reaches the recorded value
         DPRINTF("T%d %c%d B%d wait version @%d->%d\n", tid, op, TLS(memop),
             objid, obj_version[objid], TLS(wait_version).version);
