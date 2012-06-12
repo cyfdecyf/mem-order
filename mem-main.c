@@ -14,7 +14,7 @@ static void sync_thread(volatile int *flag) {
 }
 
 static void *access_thr_fn(void *dummyid) {
-    int tid = (int)(long)dummyid;
+    tid_t tid = (tid_t)(long)dummyid;
     mem_init_thr(tid);
 
     sync_thread(&start_flag);
@@ -46,7 +46,7 @@ int main(int argc, const char *argv[]) {
     thr = calloc_check(nthr, sizeof(pthread_t), "pthread_t array thr");
 
     // Initialize memory order recorder/replayer
-    mem_init(nthr);
+    mem_init((tid_t)nthr);
 
     for (long i = 0; i < nthr; i++) {
         if (pthread_create(&thr[i], NULL, access_thr_fn, (void *)i) != 0) {

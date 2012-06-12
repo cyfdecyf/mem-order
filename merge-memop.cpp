@@ -22,7 +22,7 @@ struct WaitMemop {
 } __attribute__((packed));
 
 struct QueEnt {
-	int tid;
+	int8_t tid;
 	WaitMemop wop;
 	QueEnt(int t, const WaitMemop &w) : tid(t), wop(w) {} 
 
@@ -112,8 +112,8 @@ static void merge_memop(vector<MappedLog> &log, int nthr) {
 		int *outp = (int *)outbuf;
 		*outp++ = qe.wop.version;
 		*outp++ = qe.wop.memop;
-		*outp++ = qe.tid;
-		outbuf = (char *)outp;
+		*(tid_t *)outp = qe.tid;
+		outbuf = (char *)outp + sizeof(tid_t);
 
 		// The following code dumps the object id in the log. But with object index,
 		// this is not needed. Keep it here because this is useful info for manual inspecting

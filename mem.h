@@ -14,6 +14,8 @@
 #  define BINARY_LOG
 #endif
 
+typedef int8_t tid_t;
+
 // Shared object size configured to 8 to ease output
 #define OBJ_SIZE 8
 #define NOBJS 10
@@ -27,8 +29,8 @@ static inline int obj_id(void *addr) {
 
 // Initialization function. Must called after nthr and thread
 // data storage is initialized.
-void mem_init(int nthr);
-void mem_init_thr(int tid);
+void mem_init(tid_t nthr);
+void mem_init_thr(tid_t tid);
 void mem_finish_thr();
 
 int32_t mem_read(int tid, int32_t *addr);
@@ -43,7 +45,7 @@ void print_objs(void);
 
 extern pthread_key_t tid_key;
 #define TLS_tid() \
-    int tid = (int)(long)pthread_getspecific(tid_key)
+    tid_t tid = (tid_t)(long)pthread_getspecific(tid_key)
 
 // Defines the global array.
 #define DEFINE_TLS_GLOBAL(type, var) \

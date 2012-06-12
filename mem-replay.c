@@ -26,7 +26,6 @@ static inline void next_wait_version_log() {
     MappedLog *log = &TLS(wait_version_log);
 
     if (*(int *)log->buf == -1) {
-        DPRINTF("T%d no more wait version, cnt = %d\n", tid, version_log_cnt);
         TLS(wait_version).memop = -1;
         return;
     }
@@ -58,8 +57,8 @@ typedef struct {
     // Order of field must match with binary log
     int version;
     int memop;
-    int tid;
-} WaitMemop;
+    tid_t tid;
+} __attribute__((packed)) WaitMemop;
 
 typedef struct {
     WaitMemop *log;
@@ -100,13 +99,6 @@ static void load_wait_memop_log() {
         wait_memop_log[i].log = &log_start[*index++];
         wait_memop_log[i].n = 0;
         wait_memop_log[i].size = *index++;
-#ifdef DEBUG
-        WaitMemop *log = wait_memop_log[i].log;
-        for(int j = 0; j < wait_memop_log[i].size; ++j){
-            DPRINTF("%d %d %d %d\n", log[j].objid, log[j].version,
-                log[j].memop, log[j].tid);
-        }
-#endif
     }
     unmap_log(index_log.buf, index_log.end - index_log.buf);
 }
@@ -116,7 +108,7 @@ static void load_wait_memop_log() {
 enum { INIT_LOG_CNT = 1000 };
 
 static inline int read_wait_memop_log(FILE *log, WaitMemop *ent, int *objid) {
-    if (fscanf(log, "%d %d %d %d", objid, &ent->version, &ent->memop,
+    if (fscanf(log, "%d %d %d %hhd", objid, &ent->version, &ent->memop,
             &ent->tid) != 4) {
         return 0;
     }
@@ -141,7 +133,7 @@ static void load_wait_memop_log() {
 
     int objid;
     WaitMemop ent;
-    while (fscanf(logfile, "%d %d %d %d", &objid, &ent.version, &ent.memop, &ent.tid) == 4) {
+    while (fscanf(logfile, "%d %d %d %hhd", &objid, &ent.version, &ent.memop, &ent.tid) == 4) {
         assert(objid < NOBJS);
 
         int n = wait_memop_log[objid].n;
@@ -174,7 +166,7 @@ WaitMemop *next_wait_memop(int objid, int version) {
     int i;
     WaitMemop *log = wait_memop_log[objid].log;
     // Search if there's any read get the current version.
-    DPRINTF("T%d W%d B%d wait memop search for X @%d wait_memop_idx[%d] = %d\n",
+    DPRINTF("T%hhd W%d B%d wait memop search for X @%d wait_memop_idx[%d] = %d\n",
             tid, TLS(memop), objid, version, objid, wait_memop_idx[objid]);
     for (i = wait_memop_idx[objid]; i <= wait_memop_log[objid].size &&
             (version > log[i].version || log[i].tid == tid); ++i);
@@ -188,7 +180,7 @@ WaitMemop *next_wait_memop(int objid, int version) {
     return NULL;
 }
 
-void mem_init(int nthr) {
+void mem_init(tid_t nthr) {
     load_wait_memop_log();
     wait_memop_idx = calloc_check(NOBJS, sizeof(*wait_memop_idx), "wait_memop_idx[tid]");
     ALLOC_TLS_GLOBAL(nthr, wait_version_log);
@@ -198,13 +190,13 @@ void mem_init(int nthr) {
     obj_version = calloc_check(NOBJS, sizeof(*obj_version), "Can't allocate obj_version");
 }
 
-void mem_init_thr(int tid) {
+void mem_init_thr(tid_t tid) {
     // Must set tid before using the tid_key
     pthread_setspecific(tid_key, (void *)(long)tid);
 
 #ifdef BINARY_LOG
     if (open_mapped_log("log/version", tid, &TLS(wait_version_log)) != 0) {
-        printf("T%d Error opening version log\n", tid);
+        printf("T%hhd Error opening version log\n", tid);
         exit(1);
     }
     // Use end as the log buffer end. This is somewhat hacky.
@@ -221,7 +213,7 @@ static void wait_version(int objid, const char op) {
 
     if (TLS(memop) == TLS(wait_version).memop) {
         // Wait version reaches the recorded value
-        DPRINTF("T%d %c%d B%d wait version @%d->%d\n", tid, op, TLS(memop),
+        DPRINTF("T%hhd %c%d B%d wait version @%d->%d\n", tid, op, TLS(memop),
             objid, obj_version[objid], TLS(wait_version).version);
         while (obj_version[objid] < TLS(wait_version).version) {
             cpu_relax();

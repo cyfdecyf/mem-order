@@ -3,34 +3,27 @@
 # For dumping memop log to work, it must contain object id information.
 
 SIZE_TBL = {
-  "memop" => 4,
-  "memop-index" => 2,
+  "memop" => ["iic", 2 * 4 + 1],
+  "memop-index" => ["ii", 2 * 4],
 }
 
 def getsize(filename)
   if filename.start_with? "version"
-    return 2
+    return ["ii", 8]
   end
-  size = SIZE_TBL[filename]
-  size = 3 unless size
-  size
+  SIZE_TBL[filename] || ["iii", 3 * 4]
 end
 
 logfile = ARGV[0]
-logsize = getsize(logfile)
+packstr, entrysize = getsize(logfile)
 
 idx = 0
-prev_id = -1
 File.open(logfile) do |f|
   while true
-    s = f.read(logsize * 4)
+    s = f.read(entrysize)
     break if s == nil
-    unpacked = s.unpack("i" * logsize)
+    unpacked = s.unpack(packstr)
     break if unpacked[0] == -1
-    if logfile == "memop" && unpacked[0] != prev_id
-      idx = 0 
-      prev_id = unpacked[0]
-    end
     print "#{idx} #{unpacked.inspect}\n"
     idx += 1
   end

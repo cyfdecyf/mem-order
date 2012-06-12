@@ -32,7 +32,7 @@ DEFINE_TLS_GLOBAL(FILE *, wait_version_log);
 DEFINE_TLS_GLOBAL(FILE *, wait_memop_log);
 #endif
 
-void mem_init(int nthr) {
+void mem_init(tid_t nthr) {
     objinfo = calloc_check(NOBJS, sizeof(*objinfo), "objinfo");
     ALLOC_TLS_GLOBAL(nthr, last);
     ALLOC_TLS_GLOBAL(nthr, memop);
@@ -45,7 +45,7 @@ void mem_init(int nthr) {
 #endif
 }
 
-void mem_init_thr(int tid) {
+void mem_init_thr(tid_t tid) {
     // Must set tid before using the tid_key
     pthread_setspecific(tid_key, (void *)(long)tid);
 
@@ -157,7 +157,7 @@ repeat:
         lastobj->version = version;
     }
 
-    DPRINTF("T%d R%d obj %d @%d   \t val %d\n", tid, TLS(memop), objid,
+    DPRINTF("T%hhd R%d obj %d @%d   \t val %d\n", tid, TLS(memop), objid,
         version / 2, val);
 
     // Not every read will take log. To get precise dependency, maintain the
@@ -192,7 +192,7 @@ void mem_write(int tid, int32_t *addr, int32_t val) {
         log_order(tid, objid, version, lastobj);
     }
 
-    DPRINTF("T%d W%d obj %d @%d->%d\t val %d\n", tid, TLS(memop),
+    DPRINTF("T%hhd W%d obj %d @%d->%d\t val %d\n", tid, TLS(memop),
         objid, version / 2, version / 2 + 1, val);
 
     lastobj->memop = TLS(memop);
@@ -210,7 +210,7 @@ void mem_finish_thr() {
     // last read info which otherwise would be lost. Note the final read don't
     // need to be waited by any thread as it's not executed by the program.
     for (int i = 0; i < NOBJS; i++) {
-        DPRINTF("T%d last RD obj %d @%d\n", tid, i, TLS(last)[i].version / 2);
+        DPRINTF("T%hhd last RD obj %d @%d\n", tid, i, TLS(last)[i].version / 2);
         if (TLS(last)[i].version != objinfo[i].version) {
             log_other_wait_memop(tid, i, &TLS(last)[i]);
         }
