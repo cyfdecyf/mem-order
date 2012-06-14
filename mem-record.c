@@ -9,20 +9,20 @@
 
 typedef struct {
     /* Version is like write counter */
-    volatile int version;
+    volatile version_t version;
     spinlock write_lock;
 } objinfo_t;
 
-objinfo_t *objinfo;
-
 // Information of each thread's last access
 typedef struct {
-    int version;
-    int memop;
+    version_t version;
+    memop_t memop;
 } last_objinfo_t;
 
+objinfo_t *objinfo;
+
 DEFINE_TLS_GLOBAL(last_objinfo_t *, last);
-DEFINE_TLS_GLOBAL(int, memop);
+DEFINE_TLS_GLOBAL(memop_t, memop);
 
 #ifdef BINARY_LOG
 DEFINE_TLS_GLOBAL(MappedLog, wait_version_log);
@@ -67,47 +67,47 @@ void mem_init_thr(tid_t tid) {
 
 #ifdef BINARY_LOG
 
-static inline int *next_version_log(MappedLog *log) {
-    return (int *)next_log_entry(log, 2 * sizeof(int));
+static inline WaitVersion *next_version_log(MappedLog *log) {
+    return (WaitVersion *)next_log_entry(log, sizeof(WaitVersion));
 }
 
-static inline void log_wait_version(int tid, int current_version) {
+static inline void log_wait_version(tid_t tid, version_t current_version) {
     MappedLog *log = &TLS(wait_version_log);
 
-    int *start = next_version_log(log);
+    WaitVersion *l = next_version_log(log);
 
-    *(start + 0) = TLS(memop);
-    *(start + 1) = current_version / 2;
+    l->memop = TLS(memop);
+    l->version = current_version / 2;
 }
 
-static inline int *next_memop_log(MappedLog *log) {
-    return (int *)next_log_entry(log, 3 * sizeof(int));
+static inline WaitMemop *next_memop_log(MappedLog *log) {
+    return (WaitMemop *)next_log_entry(log, sizeof(WaitMemop));
 }
 
-static inline void log_other_wait_memop(int tid, int objid, last_objinfo_t *lastobj) {
+static inline void log_other_wait_memop(tid_t tid, objid_t objid, last_objinfo_t *lastobj) {
     MappedLog *log = &TLS(wait_memop_log);
 
-    int *start = next_memop_log(log);
+    WaitMemop *l = next_memop_log(log);
 
-    *(start + 0) = objid;
-    *(start + 1) = lastobj->version / 2;
-    *(start + 2) = lastobj->memop;
+    l->objid = objid;
+    l->version = lastobj->version / 2;
+    l->memop = lastobj->memop;
 }
 
 #else // BINARY_LOG
 // Wait version is used by thread self to wait other thread.
-static inline void log_wait_version(int tid, int current_version) {
-    fprintf(TLS(wait_version_log), "%d %d\n", current_version / 2, TLS(memop));
+static inline void log_wait_version(tid_t tid, version_t current_version) {
+    fprintf(TLS(wait_version_log), "%d %d\n", (int)current_version / 2, (int)TLS(memop));
 }
 
 // Wait memop is used by other thread to wait the last memory access of self.
-static inline void log_other_wait_memop(int tid, int objid, last_objinfo_t *lastobj) {
-    fprintf(TLS(wait_memop_log), "%d %d %d\n", objid, lastobj->version / 2,
+static inline void log_other_wait_memop(tid_t tid, objid_t objid, last_objinfo_t *lastobj) {
+    fprintf(TLS(wait_memop_log), "%d %d %d\n", (int)objid, (int)(lastobj->version / 2),
         lastobj->memop);
 }
 #endif // BINARY_LOG
 
-static inline void log_order(int tid, int objid, int current_version, last_objinfo_t *lastobj) {
+static inline void log_order(tid_t tid, objid_t objid, version_t current_version, last_objinfo_t *lastobj) {
     log_wait_version(tid, current_version);
     log_other_wait_memop(tid, objid, lastobj);
 }
@@ -115,10 +115,10 @@ static inline void log_order(int tid, int objid, int current_version, last_objin
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
-int32_t mem_read(int tid, int32_t *addr) {
-    int version;
+int32_t mem_read(tid_t tid, int32_t *addr) {
+    version_t version;
     int32_t val;
-    int objid = obj_id(addr);
+    objid_t objid = obj_id(addr);
     objinfo_t *info = &objinfo[objid];
 
     do {
@@ -167,9 +167,9 @@ repeat:
     return val;
 }
 
-void mem_write(int tid, int32_t *addr, int32_t val) {
-    int version;
-    int objid = obj_id(addr);
+void mem_write(tid_t tid, int32_t *addr, int32_t val) {
+    version_t version;
+    objid_t objid = obj_id(addr);
     objinfo_t *info = &objinfo[objid];
 
     spin_lock(&info->write_lock);
@@ -217,10 +217,10 @@ void mem_finish_thr() {
     }
 #ifdef BINARY_LOG
     // Mark the end of log
-    int *next = next_version_log(&TLS(wait_version_log));
-    *next = -1;
+    // printf("mark end\n");
+    TLS(memop) = -1;
+    log_wait_version(tid, -1);
 
-    next = next_memop_log(&TLS(wait_memop_log));
-    *next = -1;
+    log_other_wait_memop(tid, -1, &TLS(last)[0]);
 #endif
 }
