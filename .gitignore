@@ -1,5 +1,5 @@
-log/*-[0-9]
-log/memop*
+replay-log/*-[0-9]
+replay-log/memop*
 .*.d
 .*.dpp
 infer

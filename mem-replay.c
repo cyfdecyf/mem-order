@@ -28,7 +28,7 @@ static inline void next_wait_version_log() {
     }
 
     TLS(wait_version) = *wv;
-    log->buf += sizeof(WaitVersion);
+    log->buf = (char *)(wv + 1);
 }
 
 #else // BINARY_LOG
@@ -58,11 +58,11 @@ int *wait_memop_idx;
 
 static void load_wait_memop_log() {
     MappedLog memop_log, index_log;
-    if (open_mapped_log_path("log/memop", &memop_log) != 0) {
+    if (open_mapped_log_path(LOGDIR"memop", &memop_log) != 0) {
         printf("Can't open memop log\n");
         exit(1);
     }
-    if (open_mapped_log_path("log/memop-index", &index_log) != 0) {
+    if (open_mapped_log_path(LOGDIR"memop-index", &index_log) != 0) {
         printf("Can't open memop-index log\n");
         exit(1);
     }
@@ -101,9 +101,9 @@ static inline int read_wait_memop_log(FILE *log, ReplayWaitMemop *ent, objid_t *
 }
 
 static void load_wait_memop_log() {
-    FILE *logfile = fopen("log/memop", "r");
+    FILE *logfile = fopen("memop", "r");
     if (! logfile) {
-        printf("Can't open log/memop\n");
+        printf("Can't open memop\n");
         exit(1);
     }
 
@@ -180,14 +180,14 @@ void mem_init_thr(tid_t tid) {
     pthread_setspecific(tid_key, (void *)(long)tid);
 
 #ifdef BINARY_LOG
-    if (open_mapped_log("log/version", tid, &TLS(wait_version_log)) != 0) {
+    if (open_mapped_log("version", tid, &TLS(wait_version_log)) != 0) {
         printf("T%d Error opening version log\n", (int)tid);
         exit(1);
     }
     // Use end as the log buffer end. This is somewhat hacky.
     TLS(wait_version_log).end = TLS(wait_version_log).buf + LOG_BUFFER_SIZE;
 #else
-    TLS(wait_version_log) = open_log("log/version", tid);
+    TLS(wait_version_log) = open_log("version", tid);
 #endif
 
     next_wait_version_log();

@@ -20,7 +20,7 @@ typedef vector< vector<WaitMemop> > WaitMemopAll;
 
 static long load_wait_memop_log(WaitMemopAll &all, tid_t tid) {
     MappedLog log;
-    open_mapped_log("log/memop", tid, &log);
+    open_mapped_log("memop", tid, &log);
 
     DPRINTF("map log done, buf start %p end %p\n", log.buf, log.end);
 
@@ -40,11 +40,11 @@ static long load_wait_memop_log(WaitMemopAll &all, tid_t tid) {
             printf("ERROR: #%ld objid %d > NOBJS %d\n", cnt, wmlog->objid, NOBJS);
             assert(0);
         }
-        if (wmlog->memop > NITER * NOBJS * 2) {
-            printf("ERROR: #%ld memop %d > maximum possible %d\n", cnt, (int)wmlog->memop,
-                NITER * NOBJS * 2);
-            assert(0);
-        }
+        // if (wmlog->memop > NITER * NOBJS * 2) {
+        //     printf("ERROR: #%ld memop %d > maximum possible %d\n", cnt, (int)wmlog->memop,
+        //         NITER * NOBJS * 2);
+        //     assert(0);
+        // }
         all[wmlog->objid].push_back(*wmlog);
         total++;
 
@@ -59,7 +59,7 @@ skip:
 
 static void write_out_memop_log(const WaitMemopAll &all, long total, tid_t tid) {
     char path[MAX_PATH_LEN];
-    logpath(path, "log/sorted-memop", tid);
+    logpath(path, "sorted-memop", tid);
 
     WaitMemop *buf = (WaitMemop *)create_mapped_file(path, total * sizeof(WaitMemop));
     DPRINTF("Open sorted log done\n");

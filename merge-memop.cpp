@@ -53,15 +53,16 @@ static void merge_memop(vector<MappedLog> &log, tid_t nthr) {
 	assert(total_size % sizeof(WaitMemop) == 0);
 	// we need to add a tid record to each log entry
 	total_size += total_size / sizeof(WaitMemop) * sizeof(int); 
-	ReplayWaitMemop *next_mwm = (ReplayWaitMemop *)create_mapped_file("log/memop", total_size);
+	ReplayWaitMemop *next_mwm = (ReplayWaitMemop *)create_mapped_file(LOGDIR"memop", total_size);
 
 	// index buf contains index for an object's log and log entry count
-	int *indexbuf = (int *)create_mapped_file("log/memop-index", NOBJS * sizeof(int) * 2);
+	int *indexbuf = (int *)create_mapped_file(LOGDIR"memop-index", NOBJS * sizeof(int) * 2);
 
 	WaitMemop wop;
 	for (int i = 0; i < nthr; ++i) {
 		enqueue_next_waitmemop(pq, log[i], wop, i);
-		DPRINTF("Init Queue add T%d %d %d %d\n", i, wop.objid, wop.version, wop.memop);
+		DPRINTF("Init Queue add T%d %d %d %d\n", i, (int)wop.objid, (int)wop.version,
+			(int)wop.memop);
 	}
 
     objid_t prev_id = -1;
@@ -145,7 +146,7 @@ int main(int argc, char const *argv[]) {
     vector<MappedLog> log;
     MappedLog l;
     for (int i = 0; i < nthr; ++i) {
-    	if (open_mapped_log("log/sorted-memop", i, &l) == 0) {
+    	if (open_mapped_log("sorted-memop", i, &l) == 0) {
     		log.push_back(l);
     	}
     }

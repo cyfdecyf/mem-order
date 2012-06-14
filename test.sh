@@ -48,7 +48,7 @@ else
 fi
 
 for i in `seq 1 $ntimes`; do
-    rm -f log/memop* log/version* log/sorted-*
+    rm -f replay-log/{memop*,version*,sorted-*}
     cecho "$i iteration"
     cecho "Record with $nthr threads"
     ./record $nthr 2>debug-record > result-record

@@ -41,9 +41,11 @@ static inline char *next_log_entry(MappedLog *log, int entry_size) {
     return start;
 }
 
+#define LOGDIR "replay-log/"
+
 #define MAX_PATH_LEN 256
 static inline void logpath(char *buf, const char *name, long id) {
-    if (snprintf(buf, MAX_PATH_LEN, "%s-%ld", name, id) >= MAX_PATH_LEN) {
+    if (snprintf(buf, MAX_PATH_LEN, LOGDIR"%s-%ld", name, id) >= MAX_PATH_LEN) {
         printf("Path name too long\n");
         exit(1);
     }

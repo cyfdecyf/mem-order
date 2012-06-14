@@ -57,11 +57,11 @@ void mem_init_thr(tid_t tid) {
         TLS(last)[i].memop = -1;
     }
 #ifdef BINARY_LOG
-    new_mapped_log("log/version", tid, &TLS(wait_version_log));
-    new_mapped_log("log/memop", tid, &TLS(wait_memop_log));
+    new_mapped_log("version", tid, &TLS(wait_version_log));
+    new_mapped_log("memop", tid, &TLS(wait_memop_log));
 #else
-    TLS(wait_version_log) = new_log("log/version", tid);
-    TLS(wait_memop_log) = new_log("log/memop", tid);
+    TLS(wait_version_log) = new_log("version", tid);
+    TLS(wait_memop_log) = new_log("memop", tid);
 #endif
 }
 
