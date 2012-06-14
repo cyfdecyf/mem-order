@@ -72,9 +72,7 @@ static inline WaitVersion *next_version_log(MappedLog *log) {
 }
 
 static inline void log_wait_version(tid_t tid, version_t current_version) {
-    MappedLog *log = &TLS(wait_version_log);
-
-    WaitVersion *l = next_version_log(log);
+    WaitVersion *l = next_version_log(&TLS(wait_version_log));
 
     l->memop = TLS(memop);
     l->version = current_version / 2;
@@ -84,14 +82,26 @@ static inline WaitMemop *next_memop_log(MappedLog *log) {
     return (WaitMemop *)next_log_entry(log, sizeof(WaitMemop));
 }
 
-static inline void log_other_wait_memop(tid_t tid, objid_t objid, last_objinfo_t *lastobj) {
-    MappedLog *log = &TLS(wait_memop_log);
-
-    WaitMemop *l = next_memop_log(log);
+static inline void log_other_wait_memop(tid_t tid, objid_t objid,
+        last_objinfo_t *lastobj) {
+    WaitMemop *l = next_memop_log(&TLS(wait_memop_log));
 
     l->objid = objid;
     l->version = lastobj->version / 2;
     l->memop = lastobj->memop;
+}
+
+static inline void mark_log_end(tid_t tid) {
+    // printf("T%d %d logent\n", (int)tid, logcnt);
+    WaitVersion *l = next_version_log(&TLS(wait_version_log));
+    l->memop = -1;
+    l->version = -1;
+
+    WaitMemop *k = next_memop_log(&TLS(wait_memop_log));
+
+    k->objid = -1;
+    k->version = -1;
+    k->memop = -1;
 }
 
 #else // BINARY_LOG
@@ -216,11 +226,6 @@ void mem_finish_thr() {
         }
     }
 #ifdef BINARY_LOG
-    // Mark the end of log
-    // printf("mark end\n");
-    TLS(memop) = -1;
-    log_wait_version(tid, -1);
-
-    log_other_wait_memop(tid, -1, &TLS(last)[0]);
+    mark_log_end(tid);
 #endif
 }

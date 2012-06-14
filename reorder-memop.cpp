@@ -26,9 +26,11 @@ static long load_wait_memop_log(WaitMemopAll &all, tid_t tid) {
 
     WaitMemop *next = (WaitMemop *)log.buf;
     WaitMemop *buffer_end = (WaitMemop *)((long)next + LOG_BUFFER_SIZE);
-    long total = 0;
+    long cnt = 0; // cnt is the number of recorded log entries
+    long total = 0; // total excludes those with memop -1
 
     while (next->objid != (objid_t)-1) {
+        cnt++;
         // No previous memop, no need to wait.
         if (next->memop == -1) {
             goto skip_padding;
@@ -36,15 +38,21 @@ static long load_wait_memop_log(WaitMemopAll &all, tid_t tid) {
         // printf("%d %d %d\n", objid, version, memop);
 
         if (next->objid >= NOBJS) {
-            printf("ERROR: objid %d > NOBJS %d\n", next->objid, NOBJS);
+            printf("ERROR: #%ld objid %d > NOBJS %d\n", cnt, next->objid, NOBJS);
+            assert(0);
+        }
+        if (next->memop > NITER * NOBJS * 2) {
+            printf("ERROR: #%ld memop %d > maximum possible %d\n", cnt, next->memop,
+                NITER * NOBJS * 2);
             assert(0);
         }
         all[next->objid].push_back(*next);
         total++;
 
 skip_padding:
+        ++next;
         // Jump over buffer padding
-        if (++next > buffer_end) {
+        if (next + 1 > buffer_end) {
             next = buffer_end;
             buffer_end = (WaitMemop *)((long)next + LOG_BUFFER_SIZE);
         }
