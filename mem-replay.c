@@ -29,11 +29,6 @@ static inline void next_wait_version_log() {
 
     TLS(wait_version) = *wv;
     log->buf += sizeof(WaitVersion);
-
-    if (log->buf + sizeof(WaitVersion) > log->end) {
-        log->buf = log->end;
-        log->end = log->buf + LOG_BUFFER_SIZE;
-    }
 }
 
 #else // BINARY_LOG

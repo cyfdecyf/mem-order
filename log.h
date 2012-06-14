@@ -15,7 +15,8 @@ FILE *open_log(const char *name, long id);
 enum { LOG_BUFFER_SIZE = 4 * 1024 }; // For testing, make it small to make enlarge necessary.
 
 typedef struct {
-    char *buf;
+    char *start;
+    char *buf; // buf can be changed
     char *end;
     int fd;
 } MappedLog;
