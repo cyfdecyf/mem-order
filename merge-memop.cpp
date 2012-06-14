@@ -29,7 +29,7 @@ struct QueEnt {
 
 typedef priority_queue<QueEnt, vector<QueEnt>, greater<QueEnt> > LogQueue;
 
-static inline void enqueue_next_waitmemop(LogQueue &pq, MappedLog &log, WaitMemop &wop, int tid) {
+static inline void enqueue_next_waitmemop(LogQueue &pq, MappedLog &log, WaitMemop &wop, tid_t tid) {
 	if (log.buf < log.end) {
 		memcpy(&wop, log.buf, sizeof(WaitMemop));
 		log.buf += sizeof(WaitMemop);
@@ -37,7 +37,7 @@ static inline void enqueue_next_waitmemop(LogQueue &pq, MappedLog &log, WaitMemo
 	}
 }
 
-static void merge_memop(vector<MappedLog> &log, int nthr) {
+static void merge_memop(vector<MappedLog> &log, tid_t nthr) {
 	LogQueue pq;
 
 	unsigned long total_size = 0;
@@ -141,6 +141,7 @@ int main(int argc, char const *argv[]) {
     int nthr;
     istringstream nthrs(argv[1]);
     nthrs >> nthr;
+    assert(nthr < ((1 << sizeof(tid_t) * 8) - 1));
 
     vector<MappedLog> log;
     MappedLog l;
@@ -149,7 +150,7 @@ int main(int argc, char const *argv[]) {
     		log.push_back(l);
     	}
     }
-    merge_memop(log, nthr);
+    merge_memop(log, (tid_t)nthr);
 
 	return 0;
 }

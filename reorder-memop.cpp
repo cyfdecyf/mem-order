@@ -76,9 +76,10 @@ int main(int argc, char const *argv[]) {
         exit(1);
     }
 
-    tid_t tid;
+    int tid;
     istringstream tids(argv[1]);
     tids >> tid;
+    assert(tid < ((1 << sizeof(tid_t) * 8) - 1));
 
     WaitMemopAll all(NOBJS);
     long total = load_wait_memop_log(all, tid);

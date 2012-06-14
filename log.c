@@ -104,7 +104,8 @@ int enlarge_mapped_log(MappedLog *log) {
 int open_mapped_log_path(const char *path, MappedLog *log) {
     log->fd = open(path, O_RDONLY);
     if (log->fd == -1) {
-        return log->fd;
+        fprintf(stderr, "Can't open file %s\n", path);
+        exit(1);
     }
 
     struct stat sb;
