@@ -141,7 +141,6 @@ int main(int argc, char const *argv[]) {
     int nthr;
     istringstream nthrs(argv[1]);
     nthrs >> nthr;
-    assert(nthr < ((1 << sizeof(tid_t) * 8) - 1));
 
     vector<MappedLog> log;
     MappedLog l;

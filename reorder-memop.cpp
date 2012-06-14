@@ -41,7 +41,7 @@ static long load_wait_memop_log(WaitMemopAll &all, tid_t tid) {
             assert(0);
         }
         if (wmlog->memop > NITER * NOBJS * 2) {
-            printf("ERROR: #%ld memop %d > maximum possible %d\n", cnt, wmlog->memop,
+            printf("ERROR: #%ld memop %d > maximum possible %d\n", cnt, (int)wmlog->memop,
                 NITER * NOBJS * 2);
             assert(0);
         }
@@ -81,7 +81,6 @@ int main(int argc, char const *argv[]) {
     int tid;
     istringstream tids(argv[1]);
     tids >> tid;
-    assert(tid < ((1 << sizeof(tid_t) * 8) - 1));
 
     WaitMemopAll all(NOBJS);
     long total = load_wait_memop_log(all, tid);

@@ -58,8 +58,14 @@ int *wait_memop_idx;
 
 static void load_wait_memop_log() {
     MappedLog memop_log, index_log;
-    open_mapped_log_path("log/memop", &memop_log);
-    open_mapped_log_path("log/memop-index", &index_log);
+    if (open_mapped_log_path("log/memop", &memop_log) != 0) {
+        printf("Can't open memop log\n");
+        exit(1);
+    }
+    if (open_mapped_log_path("log/memop-index", &index_log) != 0) {
+        printf("Can't open memop-index log\n");
+        exit(1);
+    }
 
     wait_memop_log = calloc_check(NOBJS, sizeof(*wait_memop_log), "Can't allocate wait_memop");
 
