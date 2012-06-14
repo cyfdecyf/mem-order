@@ -8,14 +8,10 @@
 // #define DEBUG
 #include "debug.h"
 
-int *obj_version;
+version_t *obj_version;
 
-DEFINE_TLS_GLOBAL(int, memop);
+DEFINE_TLS_GLOBAL(memop_t, memop);
 
-typedef struct {
-    int memop;
-    int version;
-} WaitVersion;
 DEFINE_TLS_GLOBAL(WaitVersion, wait_version);
 
 #ifdef BINARY_LOG
@@ -24,13 +20,14 @@ DEFINE_TLS_GLOBAL(MappedLog, wait_version_log);
 static inline void next_wait_version_log() {
     TLS_tid();
     MappedLog *log = &TLS(wait_version_log);
+    WaitVersion *wv = (WaitVersion *)(log->buf);
 
-    if (*(int *)log->buf == -1) {
+    if (wv->memop == -1) {
         TLS(wait_version).memop = -1;
         return;
     }
 
-    TLS(wait_version) = *(WaitVersion *)(log->buf);
+    TLS(wait_version) = *wv;
     log->buf += sizeof(WaitVersion);
 
     if (log->buf + sizeof(WaitVersion) > log->end) {
@@ -54,38 +51,25 @@ static inline void next_wait_version_log() {
 #endif // BINARY_LOG
 
 typedef struct {
-    // Order of field must match with binary log
-    int version;
-    int memop;
-    tid_t tid;
-} __attribute__((packed)) WaitMemop;
-
-typedef struct {
-    WaitMemop *log;
+    ReplayWaitMemop *log;
     int n;
     int size;
-} WaitMemopLog;
+} ReplayWaitMemopLog;
 
-WaitMemopLog *wait_memop_log;
+ReplayWaitMemopLog *wait_memop_log;
 int *wait_memop_idx;
 
 #ifdef BINARY_LOG
 
 static void load_wait_memop_log() {
     MappedLog memop_log, index_log;
-    if (open_mapped_log_path("log/memop", &memop_log) != 0) {
-        printf("Error opening memop log\n");
-        exit(1);
-    }
-    if (open_mapped_log_path("log/memop-index", &index_log) != 0) {
-        printf("Error opening memop log\n");
-        exit(1);
-    }
+    open_mapped_log_path("log/memop", &memop_log);
+    open_mapped_log_path("log/memop-index", &index_log);
 
     wait_memop_log = calloc_check(NOBJS, sizeof(*wait_memop_log), "Can't allocate wait_memop");
 
     int *index = (int *)index_log.buf;
-    WaitMemop *log_start = (WaitMemop *)memop_log.buf;
+    ReplayWaitMemop *log_start = (ReplayWaitMemop *)memop_log.buf;
     for (int i = 0; i < NOBJS; i++) {
         if (*index == -1) {
             wait_memop_log[i].log = NULL;
@@ -107,7 +91,7 @@ static void load_wait_memop_log() {
 
 enum { INIT_LOG_CNT = 1000 };
 
-static inline int read_wait_memop_log(FILE *log, WaitMemop *ent, int *objid) {
+static inline int read_wait_memop_log(FILE *log, ReplayWaitMemop *ent, objid_t *objid) {
     if (fscanf(log, "%d %d %d %hhd", objid, &ent->version, &ent->memop,
             &ent->tid) != 4) {
         return 0;
@@ -131,8 +115,8 @@ static void load_wait_memop_log() {
         wait_memop_log[i].n = 0;
     }
 
-    int objid;
-    WaitMemop ent;
+    objid_t objid;
+    ReplayWaitMemop ent;
     while (fscanf(logfile, "%d %d %d %hhd", &objid, &ent.version, &ent.memop, &ent.tid) == 4) {
         assert(objid < NOBJS);
 
@@ -140,7 +124,7 @@ static void load_wait_memop_log() {
         // Need to enlarge log array
         if (n >= wait_memop_log[objid].size) {
             unsigned int mem_size = wait_memop_log[objid].size * sizeof(wait_memop_log[0].log[0]) * 2;
-            WaitMemop *new_log = realloc(wait_memop_log[objid].log, mem_size);
+            ReplayWaitMemop *new_log = realloc(wait_memop_log[objid].log, mem_size);
             if (! new_log) {
                 printf("Can't reallocate for wait_memop[%d].log\n", objid);
                 exit(1);
@@ -161,10 +145,10 @@ static void load_wait_memop_log() {
 }
 #endif // BINARY_LOG
 
-WaitMemop *next_wait_memop(int objid, int version) {
+ReplayWaitMemop *next_wait_memop(int objid, int version) {
     TLS_tid();
     int i;
-    WaitMemop *log = wait_memop_log[objid].log;
+    ReplayWaitMemop *log = wait_memop_log[objid].log;
     // Search if there's any read get the current version.
     DPRINTF("T%hhd W%d B%d wait memop search for X @%d wait_memop_idx[%d] = %d\n",
             tid, TLS(memop), objid, version, objid, wait_memop_idx[objid]);
@@ -196,7 +180,7 @@ void mem_init_thr(tid_t tid) {
 
 #ifdef BINARY_LOG
     if (open_mapped_log("log/version", tid, &TLS(wait_version_log)) != 0) {
-        printf("T%hhd Error opening version log\n", tid);
+        printf("T%d Error opening version log\n", (int)tid);
         exit(1);
     }
     // Use end as the log buffer end. This is somewhat hacky.
@@ -222,16 +206,16 @@ static void wait_version(int objid, const char op) {
 
         if (obj_version[objid] != TLS(wait_version).version) {
             fprintf(stderr, "T%d obj_version[%d] = %d, wait_version = %d\n",
-                tid, objid, obj_version[objid], TLS(wait_version).version);
+                (int)tid, (int)objid, (int)obj_version[objid], (int)TLS(wait_version).version);
         }
         assert(obj_version[objid] == TLS(wait_version).version);
         next_wait_version_log();
     }
 }
 
-int32_t mem_read(int tid, int32_t *addr) {
+int32_t mem_read(tid_t tid, int32_t *addr) {
     int val;
-    int objid = obj_id(addr);
+    objid_t objid = obj_id(addr);
 
     wait_version(objid, 'R');
 
@@ -241,13 +225,13 @@ int32_t mem_read(int tid, int32_t *addr) {
     return val;
 }
 
-void mem_write(int tid, int32_t *addr, int32_t val) {
+void mem_write(tid_t tid, int32_t *addr, int32_t val) {
     int objid = obj_id(addr);
 
     wait_version(objid, 'W');
 
     // Wait memory accesses that happen at this version.
-    WaitMemop *log;
+    ReplayWaitMemop *log;
     while ((log = next_wait_memop(objid, obj_version[objid])) != NULL) {
         DPRINTF("T%d W%d B%d wait memop T%d X%d\n", tid, TLS(memop), objid,
             log->tid, log->memop);

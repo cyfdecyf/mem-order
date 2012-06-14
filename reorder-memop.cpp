@@ -16,48 +16,45 @@ using namespace std;
 // #define DEBUG
 #include "debug.h"
 
-enum { BUFFER_ELEMENT_N = LOG_BUFFER_SIZE / (sizeof(int) * 3) };
-
-struct WaitMemop {
-    int objid;
-    int version;
-    int memop;
-    WaitMemop(int id, int v, int m) : objid(id), version(v), memop(m) {}
-} __attribute__((packed));
-
 typedef vector< vector<WaitMemop> > WaitMemopAll;
 
-static long load_wait_memop_log(WaitMemopAll &all, int tid) {
+static long load_wait_memop_log(WaitMemopAll &all, tid_t tid) {
     MappedLog log;
     open_mapped_log("log/memop", tid, &log);
 
     DPRINTF("map log done, buf start %p end %p\n", log.buf, log.end);
 
-    int *next = (int *)log.buf;
-    int *buffer_end = (int *)((long)next + LOG_BUFFER_SIZE);
-    int objid, version, memop;
-    long total = 0;
+    WaitMemop *next = (WaitMemop *)log.buf;
+    WaitMemop *buffer_end = (WaitMemop *)((long)next + LOG_BUFFER_SIZE);
+    long cnt = 0; // cnt is the number of recorded log entries
+    long total = 0; // total excludes those with memop -1
 
-    while (*next != -1) {
-        objid = *next++;
-        version = *next++;
-        memop = *next++;
-
+    while (next->objid != (objid_t)-1) {
+        cnt++;
         // No previous memop, no need to wait.
-        if (memop == -1) {
+        if (next->memop == -1) {
             goto skip_padding;
         }
         // printf("%d %d %d\n", objid, version, memop);
 
-        assert(objid < NOBJS);
-        all[objid].push_back(WaitMemop(objid, version, memop));
+        if (next->objid >= NOBJS) {
+            printf("ERROR: #%ld objid %d > NOBJS %d\n", cnt, next->objid, NOBJS);
+            assert(0);
+        }
+        if (next->memop > NITER * NOBJS * 2) {
+            printf("ERROR: #%ld memop %d > maximum possible %d\n", cnt, next->memop,
+                NITER * NOBJS * 2);
+            assert(0);
+        }
+        all[next->objid].push_back(*next);
         total++;
 
 skip_padding:
+        ++next;
         // Jump over buffer padding
-        if ((int *)((long)next + sizeof(WaitMemop)) > buffer_end) {
+        if (next + 1 > buffer_end) {
             next = buffer_end;
-            buffer_end = (int *)((long)next + LOG_BUFFER_SIZE);
+            buffer_end = (WaitMemop *)((long)next + LOG_BUFFER_SIZE);
         }
     }
     unmap_log(log.buf, log.end - log.buf);
@@ -66,7 +63,7 @@ skip_padding:
     return total;
 }
 
-static void write_out_memop_log(const WaitMemopAll &all, long total, int tid) {
+static void write_out_memop_log(const WaitMemopAll &all, long total, tid_t tid) {
     char path[MAX_PATH_LEN];
     logpath(path, "log/sorted-memop", tid);
 
@@ -75,23 +72,9 @@ static void write_out_memop_log(const WaitMemopAll &all, long total, int tid) {
 
     WaitMemopAll::const_iterator objit;
     for (objit = all.begin(); objit != all.end(); ++objit) {
-#ifdef DEBUG
-        int prev_version = -1, prev_objid = -1;
-        for (vector<WaitMemop>::const_iterator it = objit->begin();
-            it != objit->end(); ++it) {
-            assert(it->version >= prev_version);
-            assert(it->objid >= prev_objid);
-            prev_version = it->version;
-            prev_objid = it->objid;
-
-            *buf = *it;
-            ++buf;
-        }
-#else
         const WaitMemop *st = &(*objit)[0];
         memcpy(buf, st, sizeof(WaitMemop) * objit->size());
         buf += objit->size();
-#endif
     }
 }
 
@@ -101,11 +84,10 @@ int main(int argc, char const *argv[]) {
         exit(1);
     }
 
-    assert(sizeof(WaitMemop) == 3 * sizeof(int));
-
     int tid;
     istringstream tids(argv[1]);
     tids >> tid;
+    assert(tid < ((1 << sizeof(tid_t) * 8) - 1));
 
     WaitMemopAll all(NOBJS);
     long total = load_wait_memop_log(all, tid);

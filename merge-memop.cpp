@@ -13,18 +13,10 @@ using namespace std;
 // #define DEBUG
 #include "debug.h"
 
-struct WaitMemop {
-	int objid;
-    int version;
-    int memop;
-    WaitMemop(int id, int v, int m) : objid(id), version(v), memop(m) {}
-    WaitMemop() {}
-} __attribute__((packed));
-
 struct QueEnt {
-	int8_t tid;
+	tid_t tid;
 	WaitMemop wop;
-	QueEnt(int t, const WaitMemop &w) : tid(t), wop(w) {} 
+	QueEnt(tid_t t, const WaitMemop &w) : tid(t), wop(w) {} 
 
 	bool operator>(const QueEnt &rhs) const {
 		if (wop.objid == rhs.wop.objid) {
@@ -37,7 +29,7 @@ struct QueEnt {
 
 typedef priority_queue<QueEnt, vector<QueEnt>, greater<QueEnt> > LogQueue;
 
-static inline void enqueue_next_waitmemop(LogQueue &pq, MappedLog &log, WaitMemop &wop, int tid) {
+static inline void enqueue_next_waitmemop(LogQueue &pq, MappedLog &log, WaitMemop &wop, tid_t tid) {
 	if (log.buf < log.end) {
 		memcpy(&wop, log.buf, sizeof(WaitMemop));
 		log.buf += sizeof(WaitMemop);
@@ -45,7 +37,7 @@ static inline void enqueue_next_waitmemop(LogQueue &pq, MappedLog &log, WaitMemo
 	}
 }
 
-static void merge_memop(vector<MappedLog> &log, int nthr) {
+static void merge_memop(vector<MappedLog> &log, tid_t nthr) {
 	LogQueue pq;
 
 	unsigned long total_size = 0;
@@ -61,7 +53,7 @@ static void merge_memop(vector<MappedLog> &log, int nthr) {
 	assert(total_size % sizeof(WaitMemop) == 0);
 	// we need to add a tid record to each log entry
 	total_size += total_size / sizeof(WaitMemop) * sizeof(int); 
-	char *outbuf = (char *)create_mapped_file("log/memop", total_size);
+	ReplayWaitMemop *next_mwm = (ReplayWaitMemop *)create_mapped_file("log/memop", total_size);
 
 	// index buf contains index for an object's log and log entry count
 	int *indexbuf = (int *)create_mapped_file("log/memop-index", NOBJS * sizeof(int) * 2);
@@ -72,13 +64,14 @@ static void merge_memop(vector<MappedLog> &log, int nthr) {
 		DPRINTF("Init Queue add T%d %d %d %d\n", i, wop.objid, wop.version, wop.memop);
 	}
 
-    int prev_id = -1, cnt = 0, prev_cnt = 0;;
+    objid_t prev_id = -1;
+    int cnt = 0, prev_cnt = 0;;
 	while (! pq.empty()) {
 		QueEnt qe = pq.top();
 		pq.pop();
 
 #ifdef DEBUG
-		static int prev_version = -1;
+		static version_t prev_version = -1;
 		// DPRINTF("T%d %d %d %d\n", qe.tid, qe.wop.objid, qe.wop.version, qe.wop.memop);
 		assert(qe.wop.objid >= prev_id);
 		if (qe.wop.objid != prev_id) {
@@ -109,11 +102,10 @@ static void merge_memop(vector<MappedLog> &log, int nthr) {
 			prev_id = qe.wop.objid;
 		}
 
-		int *outp = (int *)outbuf;
-		*outp++ = qe.wop.version;
-		*outp++ = qe.wop.memop;
-		*(tid_t *)outp = qe.tid;
-		outbuf = (char *)outp + sizeof(tid_t);
+		next_mwm->version = qe.wop.version;
+		next_mwm->memop = qe.wop.memop;
+		next_mwm->tid = qe.tid;
+		next_mwm++;
 
 		// The following code dumps the object id in the log. But with object index,
 		// this is not needed. Keep it here because this is useful info for manual inspecting
@@ -146,11 +138,10 @@ int main(int argc, char const *argv[]) {
         exit(1);
     }
 
-    assert(sizeof(WaitMemop) == 3 * sizeof(int));
-
     int nthr;
     istringstream nthrs(argv[1]);
     nthrs >> nthr;
+    assert(nthr < ((1 << sizeof(tid_t) * 8) - 1));
 
     vector<MappedLog> log;
     MappedLog l;
@@ -159,7 +150,7 @@ int main(int argc, char const *argv[]) {
     		log.push_back(l);
     	}
     }
-    merge_memop(log, nthr);
+    merge_memop(log, (tid_t)nthr);
 
 	return 0;
 }

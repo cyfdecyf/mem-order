@@ -4,6 +4,10 @@
 #include <stdint.h>
 #include <pthread.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // #define BENCHMARK
 
 #ifdef BENCHMARK
@@ -14,16 +18,43 @@
 #  define BINARY_LOG
 #endif
 
-typedef int8_t tid_t;
-
 // Shared object size configured to 8 to ease output
 #define OBJ_SIZE 8
 #define NOBJS 10
 
+typedef long version_t;
+typedef int16_t objid_t;
+typedef int memop_t;
+typedef int8_t tid_t;
+
+// WaitMemop is used when recording
+typedef struct {
+    objid_t objid;
+    version_t version;
+    memop_t memop;
+} __attribute__((packed)) WaitMemop;
+
+// Version log does not need preprocessing during replay
+typedef struct {
+    memop_t memop;
+    version_t version;
+} __attribute__((packed)) WaitVersion;
+
+extern int WaitMemop_wrong_size[sizeof(WaitMemop) ==
+    (sizeof(objid_t) + sizeof(version_t) + sizeof(memop_t)) ? 1 : -1];
+
+// Used during replay
+typedef struct {
+    // Order of field must match with binary log
+    version_t version;
+    memop_t memop;
+    tid_t tid;
+} __attribute__((packed)) ReplayWaitMemop;
+
 // objs are aligned to OBJ_SIZE
 extern int64_t *objs;
 
-static inline int obj_id(void *addr) {
+static inline objid_t obj_id(void *addr) {
     return ((long)addr - (long)objs) >> 3;
 }
 
@@ -33,8 +64,8 @@ void mem_init(tid_t nthr);
 void mem_init_thr(tid_t tid);
 void mem_finish_thr();
 
-int32_t mem_read(int tid, int32_t *addr);
-void    mem_write(int tid, int32_t *addr, int32_t val);
+int32_t mem_read(tid_t tid, int32_t *addr);
+void    mem_write(tid_t tid, int32_t *addr, int32_t val);
 
 void print_objs(void);
 
@@ -64,5 +95,9 @@ extern pthread_key_t tid_key;
 void *calloc_check(size_t nmemb, size_t size, const char *err_msg);
 
 #define __constructor__ __attribute__((constructor))
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
