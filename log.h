@@ -28,7 +28,7 @@ int enlarge_mapped_log(MappedLog *log);
 int open_mapped_log(const char *name, int id, MappedLog *log);
 int open_mapped_log_path(const char *path, MappedLog *log);
 
-int unmap_log(void *start, off_t size);
+int unmap_log(MappedLog *log);
 
 void *create_mapped_file(const char *name, unsigned long size);
 

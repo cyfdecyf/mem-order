@@ -51,7 +51,7 @@ static long load_wait_memop_log(WaitMemopAll &all, tid_t tid) {
 skip:
         ++wmlog;
     }
-    unmap_log(log.buf, log.end - log.buf);
+    unmap_log(&log);
 
     DPRINTF("log loaded, total %ld\n", total);
     return total;

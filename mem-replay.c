@@ -85,7 +85,7 @@ static void load_wait_memop_log() {
         wait_memop_log[i].n = 0;
         wait_memop_log[i].size = *index++;
     }
-    unmap_log(index_log.buf, index_log.end - index_log.buf);
+    unmap_log(&index_log);
 }
 
 #else // BINARY_LOG
@@ -185,8 +185,6 @@ void mem_init_thr(tid_t tid) {
         printf("T%d Error opening version log\n", (int)tid);
         exit(1);
     }
-    // Use end as the log buffer end. This is somewhat hacky.
-    TLS(wait_version_log).end = TLS(wait_version_log).buf + LOG_BUFFER_SIZE;
 #else
     TLS(wait_version_log) = open_log("version", tid);
 #endif

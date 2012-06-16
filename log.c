@@ -138,8 +138,8 @@ int open_mapped_log(const char *name, int id, MappedLog *log) {
     return open_mapped_log_path(path, log);
 }
 
-int unmap_log(void *start, off_t size) {
-    if (munmap(start, size) == -1) {
+int unmap_log(MappedLog *log) {
+    if (munmap(log->start, log->end - log->start) == -1) {
         perror("munmap");
         return -1;
     }
