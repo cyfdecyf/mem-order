@@ -146,10 +146,11 @@ static void load_wait_memop_log() {
 }
 #endif // BINARY_LOG
 
-ReplayWaitMemop *next_wait_memop(int objid, int version) {
+ReplayWaitMemop *next_wait_memop(objid_t objid) {
     TLS_tid();
     int i;
     ReplayWaitMemop *log = wait_memop_log[objid].log;
+    version_t version = obj_version[objid];
     // Search if there's any read get the current version.
     DPRINTF("T%hhd W%d B%d wait memop search for X @%d wait_memop_idx[%d] = %d\n",
             tid, TLS(memop), objid, version, objid, wait_memop_idx[objid]);
@@ -233,7 +234,7 @@ void mem_write(tid_t tid, int32_t *addr, int32_t val) {
 
     // Wait memory accesses that happen at this version.
     ReplayWaitMemop *log;
-    while ((log = next_wait_memop(objid, obj_version[objid])) != NULL) {
+    while ((log = next_wait_memop(objid)) != NULL) {
         DPRINTF("T%d W%d B%d wait memop T%d X%d\n", tid, TLS(memop), objid,
             log->tid, log->memop);
         while (memop_tls[log->tid] <= log->memop) {
