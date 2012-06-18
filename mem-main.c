@@ -35,12 +35,21 @@ static void *access_thr_fn(void *dummyid) {
 
     sync_thread(&start_flag);
 
+    int start, end, inc;
+    if (tid & 1) {
+        start = 0;
+        end = NOBJS;
+        inc = 1;
+    } else {
+        start = NOBJS - 1;
+        end = -1;
+        inc = -1;
+    }
+
     for (int i = 0; i < NITER; i++) {
-        for (int j = 0; j < NOBJS; j++) {
+        for (int j = start; j != end; j += inc) {
             // Access a 32bit int inside a 64bit int
             int32_t *addr = (int32_t *)&objs[j];
-            // Different threads access different part of the shared object
-            // addr += tid & 1;
             int32_t val = mem_read(tid, addr);
             mem_write(tid, addr, val + 1);
         }
