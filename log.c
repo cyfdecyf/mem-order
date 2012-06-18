@@ -110,6 +110,8 @@ int enlarge_mapped_log(MappedLog *log) {
 int open_mapped_log_path(const char *path, MappedLog *log) {
     log->fd = open(path, O_RDONLY);
     if (log->fd == -1) {
+        // Make start, buf and end all the same. This marks that the log is empty.
+        log->start = log->end = log->buf = NULL;
         return -1;
     }
 
@@ -149,17 +151,17 @@ int unmap_log(MappedLog *log) {
 void *create_mapped_file(const char *path, unsigned long size) {
     int fd = open(path, O_RDWR|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
     if (fd == -1) {
-        perror("open in map_fixed_size_file");
+        perror("open in create_mapped_file");
         exit(1);
     }
 
     if (ftruncate(fd, size) == -1) {
-        perror("ftruncate in map_fixed_size_file");
+        perror("ftruncate in create_mapped_file");
         exit(1);
     }
     void *buf = mmap(0, size, PROT_WRITE|PROT_READ, MAP_SHARED, fd, 0);
     if (buf == MAP_FAILED) {
-        perror("mmap in map_fixed_size_file");
+        perror("mmap in create_mapped_file");
         exit(1);
     }
     return buf;

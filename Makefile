@@ -10,7 +10,7 @@ TEST = mem-test
 
 SRC = mem.c mem-main.c
 
-all: $(TARG) $(TEST)
+all: $(TARG)
 
 dummy-acc: $(MEMOBJS) mem-dummy.o mem-main.o
 	$(call cc-link-command)
