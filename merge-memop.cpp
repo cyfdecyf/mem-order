@@ -42,24 +42,36 @@ static void merge_memop(vector<MappedLog> &log, tid_t nthr) {
 
 	unsigned long total_size = 0;
 	for (int i = 0; i < nthr; ++i) {
-		struct stat sb;
-		if (fstat(log[i].fd, &sb) == -1) {
-			perror("fstat in enlarge_mapped_log");
-			exit(1);
+		// Only add file size if it's opened correctly
+		if (log[i].fd != -1) {
+			struct stat sb;
+			if (fstat(log[i].fd, &sb) == -1) {
+				perror("fstat in enlarge_mapped_log");
+				exit(1);
+			}
+			total_size += sb.st_size;
 		}
-		total_size += sb.st_size;
 	}
 
+	if (total_size == 0) {
+		exit(1);
+	}
 	assert(total_size % sizeof(WaitMemop) == 0);
 	// we need to add a tid record to each log entry
 	total_size += total_size / sizeof(WaitMemop) * sizeof(int); 
-	ReplayWaitMemop *next_mwm = (ReplayWaitMemop *)create_mapped_file(LOGDIR"memop", total_size);
+	ReplayWaitMemop *next_mwm = (ReplayWaitMemop *)create_mapped_file(LOGDIR"memop",
+		total_size);
+	DPRINTF("created memop log\n");
 
 	// index buf contains index for an object's log and log entry count
-	int *indexbuf = (int *)create_mapped_file(LOGDIR"memop-index", NOBJS * sizeof(int) * 2);
+	int *indexbuf = (int *)create_mapped_file(LOGDIR"memop-index",
+		NOBJS * sizeof(int) * 2);
+	DPRINTF("created memop-index log\n");
 
 	WaitMemop wop;
 	for (int i = 0; i < nthr; ++i) {
+		if (log[i].fd == -1)
+			continue;
 		enqueue_next_waitmemop(pq, log[i], wop, i);
 		DPRINTF("Init Queue add T%d %d %d %d\n", i, (int)wop.objid, (int)wop.version,
 			(int)wop.memop);
@@ -73,7 +85,7 @@ static void merge_memop(vector<MappedLog> &log, tid_t nthr) {
 
 #ifdef DEBUG
 		static version_t prev_version = -1;
-		// DPRINTF("T%d %d %d %d\n", qe.tid, qe.wop.objid, qe.wop.version, qe.wop.memop);
+		DPRINTF("T%d %d %d %d\n", qe.tid, qe.wop.objid, qe.wop.version, qe.wop.memop);
 		assert(qe.wop.objid >= prev_id);
 		if (qe.wop.objid != prev_id) {
 			prev_version = -1;
@@ -125,11 +137,9 @@ static void merge_memop(vector<MappedLog> &log, tid_t nthr) {
 	// Last object's log size
 	*indexbuf++ = cnt - prev_cnt;
 
-	if (prev_id != NOBJS - 1) {
-		for (int i = prev_id + 1; i < NOBJS; ++i) {
-			*indexbuf++ = -1;
-			*indexbuf++ = 0;
-		}
+	for (int i = prev_id + 1; i < NOBJS; ++i) {
+		*indexbuf++ = -1;
+		*indexbuf++ = 0;
 	}
 	DPRINTF("obj %d index %d log entry count %d\n", prev_id, prev_cnt, *indexbuf);
 	DPRINTF("total #wait_memop %d\n", cnt);
@@ -148,9 +158,9 @@ int main(int argc, char const *argv[]) {
     vector<MappedLog> log;
     MappedLog l;
     for (int i = 0; i < nthr; ++i) {
-    	if (open_mapped_log("sorted-memop", i, &l) == 0) {
-    		log.push_back(l);
-    	}
+        // Push the log structure into the vector even if open failed
+        open_mapped_log("sorted-memop", i, &l);
+        log.push_back(l);
     }
     merge_memop(log, (tid_t)nthr);
 

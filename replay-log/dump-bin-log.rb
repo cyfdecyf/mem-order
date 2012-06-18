@@ -8,10 +8,12 @@ SIZE_TBL = {
 }
 
 def getsize(filename)
+  return SIZE_TBL[filename] if SIZE_TBL.has_key? filename
   if filename.start_with? "version"
-    return ["ii", 8]
+    ["ii", 8]
+  elsif filename.start_with? "memop"
+    ["cii", 9]
   end
-  SIZE_TBL[filename] || ["iii", 3 * 4]
 end
 
 logfile = ARGV[0]
