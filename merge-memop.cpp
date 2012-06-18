@@ -58,9 +58,9 @@ static void merge_memop(vector<MappedLog> &log, tid_t nthr) {
 	}
 	assert(total_size % sizeof(WaitMemop) == 0);
 	// we need to add a tid record to each log entry
-	total_size += total_size / sizeof(WaitMemop) * sizeof(int); 
+	int entrycount = total_size / sizeof(WaitMemop);
 	ReplayWaitMemop *next_mwm = (ReplayWaitMemop *)create_mapped_file(LOGDIR"memop",
-		total_size);
+		entrycount * sizeof(*next_mwm));
 	DPRINTF("created memop log\n");
 
 	// index buf contains index for an object's log and log entry count
