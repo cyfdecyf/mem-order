@@ -88,6 +88,8 @@ static void merge_memop(vector<MappedLog> &log, tid_t nthr) {
 			if (prev_id != -1) {
 				// Write out previous object's log entry count
 				*indexbuf = cnt - prev_cnt;
+				// XXX note here. The log contains entry with count as -1j
+				assert(*indexbuf > 0);
 				DPRINTF("obj %d index %d log entry count %d\n", prev_id, prev_cnt, *indexbuf);
 				indexbuf++;
 			}
@@ -121,7 +123,7 @@ static void merge_memop(vector<MappedLog> &log, tid_t nthr) {
 		cnt++;
 	}
 	// Last object's log size
-	*indexbuf = cnt - prev_cnt;
+	*indexbuf++ = cnt - prev_cnt;
 
 	if (prev_id != NOBJS - 1) {
 		for (int i = prev_id + 1; i < NOBJS; ++i) {
