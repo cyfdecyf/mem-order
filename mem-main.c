@@ -30,7 +30,8 @@ static void sync_thread(volatile int *flag) {
 }
 
 static void *access_thr_fn(void *dummyid) {
-    tid_t tid = (tid_t)(long)dummyid;
+    // Must set tid before using
+    tid = (tid_t)(long)dummyid;
     mem_init_thr(tid);
 
     sync_thread(&start_flag);

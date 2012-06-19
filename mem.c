@@ -4,17 +4,23 @@
 
 int64_t *objs;
 
+#ifdef __linux
+__thread tid_t tid;
+#else
 pthread_key_t tid_key;
+#endif
 
 static void __constructor__ init() {
     if (posix_memalign((void **)&objs, OBJ_SIZE, NOBJS * OBJ_SIZE) != 0) {
         printf("memory allocation for objs failed\n");
         exit(1);
     }
+#ifndef __linux
     if (pthread_key_create(&tid_key, NULL)) {
         printf("thr_id key creation failed\n");
         exit(1);
     }
+#endif
 }
 
 void print_objs(void) {
