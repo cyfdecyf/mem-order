@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#define DEBUG
+// #define DEBUG
 #include "debug.h"
 
 version_t *obj_version;
@@ -157,7 +157,7 @@ ReplayWaitMemop *next_wait_memop(objid_t objid) {
     version_t version = obj_version[objid];
 
     if (wait_memop_idx[objid] >= wait_memop_log[objid].size) {
-        DPRINTF("T%d W%d B%d no more wait memop log", tid, memop, objid);
+        /*DPRINTF("T%d W%d B%d no more wait memop log\n", tid, memop, objid);*/
         return NULL;
     }
     // Search if there's any read get the current version.

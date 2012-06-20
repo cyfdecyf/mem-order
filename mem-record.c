@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define DEBUG
+// #define DEBUG
 #include "debug.h"
 
 typedef struct {
@@ -150,6 +150,7 @@ int32_t mem_read(tid_t tid, int32_t *addr) {
         // First wait until there is no writer trying to update version and
         // value.
 repeat:
+        __sync_synchronize();
         version = info->version;
         if (unlikely(version & 1)) {
             cpu_relax();
@@ -209,6 +210,7 @@ void mem_write(tid_t tid, int32_t *addr, int32_t val) {
 
     // Odd version means that there's writer trying to update value.
     info->version++;
+    // __sync_fetch_and_add(&info->version, 1);
     barrier();
     *addr = val;
     barrier();
