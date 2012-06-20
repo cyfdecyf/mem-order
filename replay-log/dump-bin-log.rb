@@ -13,6 +13,8 @@ def getsize(filename)
     ["ii", 8]
   elsif filename.start_with? "memop"
     ["cii", 9]
+  elsif filename.start_with? "debug-access"
+    ["cciii", 2 + 4 * 3]
   end
 end
 

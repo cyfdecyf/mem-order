@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// #define DEBUG
+#define DEBUG
 #include "debug.h"
 
 typedef struct {
@@ -32,6 +32,29 @@ __thread FILE *wait_version_log;
 __thread FILE *wait_memop_log;
 #endif
 
+#ifdef DEBUG
+__thread MappedLog debug_access_log;
+
+typedef struct {
+    char acc;
+    memop_t memop;
+    objid_t objid;
+    version_t version;
+    int32_t val;
+} __attribute__((packed)) AccessEntry;
+
+static inline void log_access(char acc, objid_t objid, version_t ver,
+        memop_t memop, int32_t val) {
+    AccessEntry *ent = (AccessEntry *)next_log_entry(&debug_access_log, sizeof(*ent));
+    ent->acc = acc;
+    ent->memop = memop;
+    ent->objid = objid;
+    ent->version = ver;
+    ent->val = val;
+}
+
+#endif
+
 void mem_init(tid_t nthr) {
     objinfo = calloc_check(NOBJS, sizeof(*objinfo), "objinfo");
 }
@@ -50,6 +73,10 @@ void mem_init_thr(tid_t tid) {
 #else
     wait_version_log = new_log("version", tid);
     wait_memop_log = new_log("memop", tid);
+#endif
+
+#ifdef DEBUG
+    new_mapped_log("debug-access", tid, &debug_access_log);
 #endif
 }
 
@@ -155,8 +182,13 @@ repeat:
         lastobj->version = version;
     }
 
-    DPRINTF("T%hhd R%d obj %d @%d   \t val %d\n", tid, memop, objid,
-        version / 2, val);
+    /*
+     *DPRINTF("T%hhd R%d obj %d @%d   \t val %d\n", tid, memop, objid,
+     *    version / 2, val);
+     */
+#ifdef DEBUG
+    log_access('R', objid, version / 2, memop, val);
+#endif
 
     // Not every read will take log. To get precise dependency, maintain the
     // last read memop information for each object.
@@ -190,8 +222,13 @@ void mem_write(tid_t tid, int32_t *addr, int32_t val) {
         log_order(tid, objid, version, lastobj);
     }
 
-    DPRINTF("T%hhd W%d obj %d @%d->%d\t val %d\n", tid, memop,
-        objid, version / 2, version / 2 + 1, val);
+    /*
+     *DPRINTF("T%hhd W%d obj %d @%d->%d\t val %d\n", tid, memop,
+     *    objid, version / 2, version / 2 + 1, val);
+     */
+#ifdef DEBUG
+    log_access('W', objid, version / 2, memop, val);
+#endif
 
     lastobj->memop = memop;
     lastobj->version = version + 2;
@@ -206,7 +243,7 @@ void mem_finish_thr() {
     // last read info which otherwise would be lost. Note the final read don't
     // need to be waited by any thread as it's not executed by the program.
     for (int i = 0; i < NOBJS; i++) {
-        DPRINTF("T%hhd last RD obj %d @%d\n", tid, i, last[i].version / 2);
+        /*DPRINTF("T%hhd last RD obj %d @%d\n", tid, i, last[i].version / 2);*/
         if (last[i].version != objinfo[i].version) {
             log_other_wait_memop(tid, i, &last[i]);
         }
