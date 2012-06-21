@@ -146,11 +146,44 @@ int32_t mem_read(tid_t tid, int32_t *addr) {
     objid_t objid = obj_id(addr);
     objinfo_t *info = &objinfo[objid];
 
+    // Avoid reording version reading before version writing the previous
+    // mem_write
+    //
+    // The following situation may cause problem (assume A.ver = B.ver = 0
+    // initialy):
+    //
+    //       T0          T1
+    //
+    // 1  lock A       lock B
+    // 2
+    // 3  A.ver = 1    A.ver = 1
+    // 4  write A      write B
+    // 5  A.ver = 2    B.ver = 2
+    // 6
+    // 7  v0 = B.ver   v1 = A.ver # may reorder
+    // 8  read B       read A     # may reorder, but after version reading
+    // 9  no conflict  no conflict
+    //
+    // If version reading is reordered to line 2, then v0 and v1 could both be 0.
+    //
+    // From T0's view, it considers T0 read B -> T1 write B.
+    // From T1's view, it considers T1 read A -> T0 write A.
+    //
+    // Note line 8's read may also be reordered to line 2, which supports the
+    // above situation.
+    //
+    // The contradiction is caused by the program order on both threads itself
+    //
+    // T0 has: T0 write A -> T0 read B -> (T1 write B -> T1 read A)
+    // T1 has: T1 write B -> T1 read A -> (T0 write A -> T0 read B)
+    //
+    // By adding a barrier before version reading, we disallow reordering it
+    // before version update to solve this problem.
+    __sync_synchronize();
     do {
         // First wait until there is no writer trying to update version and
         // value.
 repeat:
-        __sync_synchronize();
         version = info->version;
         if (unlikely(version & 1)) {
             cpu_relax();
@@ -210,7 +243,6 @@ void mem_write(tid_t tid, int32_t *addr, int32_t val) {
 
     // Odd version means that there's writer trying to update value.
     info->version++;
-    // __sync_fetch_and_add(&info->version, 1);
     barrier();
     *addr = val;
     barrier();
