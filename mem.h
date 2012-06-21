@@ -69,12 +69,11 @@ void    mem_write(tid_t tid, int32_t *addr, int32_t val);
 
 void print_objs(void);
 
-#ifdef __linux
 // gcc on linux supports __thread. It's much pleasant to use than using
 // global array and pthread_getspecific etc.
 extern __thread tid_t tid;
-#else
 
+#ifndef __linux
 // Macro to handle thread local storage
 
 // Store TLS data in a global array, use thread id to get thread local

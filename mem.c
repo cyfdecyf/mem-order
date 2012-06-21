@@ -4,9 +4,9 @@
 
 int64_t *objs;
 
-#ifdef __linux
 __thread tid_t tid;
-#else
+
+#ifndef __linux
 pthread_key_t tid_key;
 #endif
 
