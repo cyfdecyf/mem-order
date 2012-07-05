@@ -32,16 +32,16 @@ typedef struct {
     objid_t objid;
     version_t version;
     memop_t memop;
-} __attribute__((packed)) WaitMemop;
+} WaitMemop;
 
 // Version log does not need preprocessing during replay
 typedef struct {
     memop_t memop;
     version_t version;
-} __attribute__((packed)) WaitVersion;
+} WaitVersion;
 
-extern int WaitMemop_wrong_size[sizeof(WaitMemop) ==
-    (sizeof(objid_t) + sizeof(version_t) + sizeof(memop_t)) ? 1 : -1];
+/*extern int WaitMemop_wrong_size[sizeof(WaitMemop) ==
+    (sizeof(objid_t) + sizeof(version_t) + sizeof(memop_t)) ? 1 : -1];*/
 
 // Used during replay
 typedef struct {
@@ -49,7 +49,7 @@ typedef struct {
     version_t version;
     memop_t memop;
     tid_t tid;
-} __attribute__((packed)) ReplayWaitMemop;
+} ReplayWaitMemop;
 
 // objs are aligned to OBJ_SIZE
 extern int64_t *objs;

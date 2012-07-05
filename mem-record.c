@@ -41,7 +41,7 @@ typedef struct {
     objid_t objid;
     version_t version;
     int32_t val;
-} __attribute__((packed)) AccessEntry;
+} AccessEntry;
 
 static inline void log_access(char acc, objid_t objid, version_t ver,
         memop_t memop, int32_t val) {
