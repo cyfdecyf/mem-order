@@ -38,7 +38,7 @@ test: $(TEST)
 
 clean:
 	-rm -f *.o
-	-rm -rf .*.d
+	-rm -rf .*.d .*.dpp
 	-rm -f $(TARG)
 	-rm $(TEST)
 
