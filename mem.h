@@ -22,9 +22,9 @@ extern "C" {
 #define OBJ_SIZE 8
 #define NOBJS 10
 
-typedef int version_t;
-typedef int8_t objid_t;
-typedef int memop_t;
+typedef long version_t;
+typedef int objid_t;
+typedef long memop_t;
 typedef int8_t tid_t;
 
 // WaitMemop is used when recording
