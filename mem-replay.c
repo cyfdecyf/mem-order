@@ -8,7 +8,7 @@
 // #define DEBUG
 #include "debug.h"
 
-version_t *obj_version;
+volatile version_t *obj_version;
 
 __thread memop_t memop;
 memop_t **memop_cnt;
@@ -152,14 +152,14 @@ static void load_wait_memop_log() {
 #endif // BINARY_LOG
 
 ReplayWaitMemop *next_wait_memop(objid_t objid) {
-    int i;
-    ReplayWaitMemop *log = wait_memop_log[objid].log;
-    version_t version = obj_version[objid];
-
     if (wait_memop_idx[objid] >= wait_memop_log[objid].size) {
         /*DPRINTF("T%d W%d B%d no more wait memop log\n", tid, memop, objid);*/
         return NULL;
     }
+
+    int i;
+    ReplayWaitMemop *log = wait_memop_log[objid].log;
+    version_t version = obj_version[objid];
     // Search if there's any read get the current version.
     DPRINTF("T%hhd W%d B%d wait memop search for X @%d wait_memop_idx[%d] = %d\n",
             tid, memop, objid, version, objid, wait_memop_idx[objid]);
