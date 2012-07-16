@@ -156,7 +156,7 @@ int32_t mem_read(tid_t tid, int32_t *addr) {
     //
     // 1  lock A       lock B
     // 2
-    // 3  A.ver = 1    A.ver = 1
+    // 3  A.ver = 1    B.ver = 1
     // 4  write A      write B
     // 5  A.ver = 2    B.ver = 2
     // 6
@@ -177,13 +177,13 @@ int32_t mem_read(tid_t tid, int32_t *addr) {
     // T0 has: T0 write A -> T0 read B -> (T1 write B -> T1 read A)
     // T1 has: T1 write B -> T1 read A -> (T0 write A -> T0 read B)
     //
-    // By adding a barrier before version reading, we disallow reordering it
-    // before version update to solve this problem.
+    // Putting barrier near another barrier could reduce the cost of barrier
+    // instruction.
     //
-    // Actually, this is not the best place to add the barrier. Putting it near
-    // another barrier could reduce the barrier instruction's cost. In this
-    // program, it should be added after the second version update.
-    //__sync_synchronize();
+    // In this algorithm, the key is to disallow reorder of the actual read to
+    // before the write. So barrier should be added right after the actual write
+    // in mem_write function.
+
     do {
         // First wait until there is no writer trying to update version and
         // value.
@@ -249,10 +249,9 @@ void mem_write(tid_t tid, int32_t *addr, int32_t val) {
     info->version++;
     barrier();
     *addr = val;
-    barrier();
-    info->version++;
-    // This is the better place to put the barrier.
+    // This barrier disallows read to happen before the write.
     __sync_synchronize();
+    info->version++;
 
     spin_unlock(&info->write_lock);
 
