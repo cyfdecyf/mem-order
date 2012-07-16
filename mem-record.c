@@ -179,7 +179,11 @@ int32_t mem_read(tid_t tid, int32_t *addr) {
     //
     // By adding a barrier before version reading, we disallow reordering it
     // before version update to solve this problem.
-    __sync_synchronize();
+    //
+    // Actually, this is not the best place to add the barrier. Putting it near
+    // another barrier could reduce the barrier instruction's cost. In this
+    // program, it should be added after the second version update.
+    //__sync_synchronize();
     do {
         // First wait until there is no writer trying to update version and
         // value.
@@ -247,6 +251,8 @@ void mem_write(tid_t tid, int32_t *addr, int32_t val) {
     *addr = val;
     barrier();
     info->version++;
+    // This is the better place to put the barrier.
+    __sync_synchronize();
 
     spin_unlock(&info->write_lock);
 
