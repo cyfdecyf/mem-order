@@ -250,6 +250,7 @@ void mem_write(tid_t tid, int32_t *addr, int32_t val) {
     barrier();
     *addr = val;
     // This barrier disallows read to happen before the write.
+    // The explicit barrier here may also make the compiler unnecessary here.
     __sync_synchronize();
     info->version++;
 
