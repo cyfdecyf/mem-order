@@ -187,11 +187,10 @@ int32_t mem_read(tid_t tid, int32_t *addr) {
     do {
         // First wait until there is no writer trying to update version and
         // value.
-repeat:
         version = info->version;
-        if (unlikely(version & 1)) {
+        while (unlikely(version & 1)) {
             cpu_relax();
-            goto repeat;
+            version = info->version;
         }
         barrier();
         // When we reach here, the writer must either
