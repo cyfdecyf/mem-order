@@ -25,11 +25,15 @@ __thread last_objinfo_t * last;
 __thread memop_t memop;
 
 #ifdef BINARY_LOG
-__thread MappedLog wait_version_log;
-__thread MappedLog wait_memop_log;
+__thread struct {
+    MappedLog wait_version;
+    MappedLog wait_memop;
+} logs;
 #else
-__thread FILE *wait_version_log;
-__thread FILE *wait_memop_log;
+__thread struct {
+    FILE *wait_version;
+    FILE *wait_memop;
+} logs;
 #endif
 
 #ifdef DEBUG
@@ -68,11 +72,11 @@ void mem_init_thr(tid_t tid) {
         last[i].memop = -1;
     }
 #ifdef BINARY_LOG
-    new_mapped_log("version", tid, &wait_version_log);
-    new_mapped_log("memop", tid, &wait_memop_log);
+    new_mapped_log("version", tid, &logs.wait_version);
+    new_mapped_log("memop", tid, &logs.wait_memop);
 #else
-    wait_version_log = new_log("version", tid);
-    wait_memop_log = new_log("memop", tid);
+    logs.wait_version = new_log("version", tid);
+    logs.wait_memop = new_log("memop", tid);
 #endif
 
 #ifdef DEBUG
@@ -87,7 +91,7 @@ static inline WaitVersion *next_version_log(MappedLog *log) {
 }
 
 static inline void log_wait_version(tid_t tid, version_t current_version) {
-    WaitVersion *l = next_version_log(&wait_version_log);
+    WaitVersion *l = next_version_log(&logs.wait_version);
 
     l->memop = memop;
     l->version = current_version / 2;
@@ -99,7 +103,7 @@ static inline WaitMemop *next_memop_log(MappedLog *log) {
 
 static inline void log_other_wait_memop(tid_t tid, objid_t objid,
         last_objinfo_t *lastobj) {
-    WaitMemop *l = next_memop_log(&wait_memop_log);
+    WaitMemop *l = next_memop_log(&logs.wait_memop);
 
     l->objid = objid;
     l->version = lastobj->version / 2;
@@ -108,11 +112,11 @@ static inline void log_other_wait_memop(tid_t tid, objid_t objid,
 
 static inline void mark_log_end(tid_t tid) {
     // printf("T%d %d logent\n", (int)tid, logcnt);
-    WaitVersion *l = next_version_log(&wait_version_log);
+    WaitVersion *l = next_version_log(&logs.wait_version);
     l->memop = -1;
     l->version = -1;
 
-    WaitMemop *k = next_memop_log(&wait_memop_log);
+    WaitMemop *k = next_memop_log(&logs.wait_memop);
 
     k->objid = -1;
     k->version = -1;
@@ -122,12 +126,12 @@ static inline void mark_log_end(tid_t tid) {
 #else // BINARY_LOG
 // Wait version is used by thread self to wait other thread.
 static inline void log_wait_version(tid_t tid, version_t current_version) {
-    fprintf(wait_version_log, "%d %d\n", (int)current_version / 2, (int)memop);
+    fprintf(logs.wait_version, "%d %d\n", (int)current_version / 2, (int)memop);
 }
 
 // Wait memop is used by other thread to wait the last memory access of self.
 static inline void log_other_wait_memop(tid_t tid, objid_t objid, last_objinfo_t *lastobj) {
-    fprintf(wait_memop_log, "%d %d %d\n", (int)objid, (int)(lastobj->version / 2),
+    fprintf(logs.wait_memop, "%d %d %d\n", (int)objid, (int)(lastobj->version / 2),
         lastobj->memop);
 }
 #endif // BINARY_LOG
@@ -215,7 +219,7 @@ int32_t mem_read(tid_t tid, int32_t *addr) {
     // write.
     if (lastobj->version != version) {
         log_order(tid, objid, version, lastobj);
-        // Update version so that following write after read don't need log.
+        // Update version so that following write after read don't need logs.
         lastobj->version = version;
     }
 
@@ -227,7 +231,7 @@ int32_t mem_read(tid_t tid, int32_t *addr) {
     log_access('R', objid, version / 2, memop, val);
 #endif
 
-    // Not every read will take log. To get precise dependency, maintain the
+    // Not every read will take logs. To get precise dependency, maintain the
     // last read memop information for each object.
     lastobj->memop = memop;
     memop++;
@@ -276,7 +280,7 @@ void mem_write(tid_t tid, int32_t *addr, int32_t val) {
 
 void mem_finish_thr() {
     // Must be called after all writes are done. For each object, take
-    // wait_memop log.
+    // wait_memop logs.
     // This is necessary for the last read to an object that's
     // modified by other thread later. Making a final read can record the
     // last read info which otherwise would be lost. Note the final read don't
