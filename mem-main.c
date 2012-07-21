@@ -29,26 +29,23 @@ static void sync_thread(volatile int *flag) {
         asm volatile ("pause");
 }
 
-static void *access_thr_fn(void *dummyid) {
+static inline void thr_start(void *dummyid) {
     // Must set tid before using
     tid = (tid_t)(long)dummyid;
     mem_init_thr(tid);
-
     sync_thread(&start_flag);
+}
 
-    int start, end, inc;
-    if (tid & 1) {
-        start = 0;
-        end = NOBJS;
-        inc = 1;
-    } else {
-        start = NOBJS - 1;
-        end = -1;
-        inc = -1;
-    }
+static inline void thr_end() {
+    sync_thread(&finish_flag);
+    mem_finish_thr();
+}
+
+static void *access_thr_fn1(void *dummyid) {
+    thr_start(dummyid);
 
     for (int i = 0; i < NITER; i++) {
-        for (int j = start; j != end; j += inc) {
+        for (int j = 0; j < NOBJS; j++) {
             // Access a 32bit int inside a 64bit int
             int32_t *addr = (int32_t *)&objs[j];
             int32_t val = mem_read(tid, addr);
@@ -56,10 +53,31 @@ static void *access_thr_fn(void *dummyid) {
         }
     }
 
-    sync_thread(&finish_flag);
-    mem_finish_thr();
+    thr_end();
     return NULL;
 }
+
+static void *access_thr_fn2(void *dummyid) {
+    thr_start(dummyid);
+
+    for (int i = 0; i < NITER; i++) {
+        for (int j = NOBJS - 1; j > 0; j--) {
+            // Access a 32bit int inside a 64bit int
+            int32_t *addr = (int32_t *)&objs[j];
+            int32_t val = mem_read(tid, addr);
+            mem_write(tid, addr, val + 1);
+        }
+    }
+
+    thr_end();
+    return NULL;
+}
+
+typedef void *(*thr_fn_t)(void *dummyid);
+static thr_fn_t thr_fn[] = {
+    access_thr_fn1,
+    access_thr_fn2,
+};
 
 int main(int argc, const char *argv[]) {
     if (argc != 2) {
@@ -77,7 +95,7 @@ int main(int argc, const char *argv[]) {
     mem_init((tid_t)nthr);
 
     for (long i = 0; i < nthr; i++) {
-        if (pthread_create(&thr[i], NULL, access_thr_fn, (void *)i) != 0) {
+        if (pthread_create(&thr[i], NULL, thr_fn[i], (void *)i) != 0) {
             printf("thread creation failed\n");
             exit(1);
         }
