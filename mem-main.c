@@ -46,7 +46,7 @@ static void *access_thr_fn1(void *dummyid) {
 
     for (int i = 0; i < NITER; i++) {
         for (int j = 0; j < NOBJS; j++) {
-            // Access a 32bit int inside a 64bit int
+            // First read, then write. From object 0 to NOBJS-1
             int32_t *addr = (int32_t *)&objs[j];
             int32_t val = mem_read(tid, addr);
             mem_write(tid, addr, val + 1);
@@ -61,11 +61,53 @@ static void *access_thr_fn2(void *dummyid) {
     thr_start(dummyid);
 
     for (int i = 0; i < NITER; i++) {
-        for (int j = NOBJS - 1; j > 0; j--) {
-            // Access a 32bit int inside a 64bit int
+        for (int j = NOBJS - 1; j > -1; j--) {
+            // First read, then write. From object NOBJS-1 to 0
             int32_t *addr = (int32_t *)&objs[j];
             int32_t val = mem_read(tid, addr);
             mem_write(tid, addr, val + 1);
+        }
+    }
+
+    thr_end();
+    return NULL;
+}
+
+static void *access_thr_fn3(void *dummyid) {
+    thr_start(dummyid);
+
+    for (int i = 0; i < NITER; i++) {
+        for (int j = 0; j < NOBJS - 1; j += 2) {
+            // First read memobj j, the write to memobj j+1, then write to memobj j
+            int32_t *addrj = (int32_t *)&objs[j];
+            int32_t *addrj1 = (int32_t *)&objs[j+1];
+
+            int32_t val = mem_read(tid, addrj);
+            mem_write(tid, addrj1, val + 1);
+
+            val = mem_read(tid, addrj1);
+            mem_write(tid, addrj, val + 2);
+        }
+    }
+
+    thr_end();
+    return NULL;
+}
+
+static void *access_thr_fn4(void *dummyid) {
+    thr_start(dummyid);
+
+    for (int i = 0; i < NITER; i++) {
+        for (int j = NOBJS - 1; j > 0; j -= 2) {
+            // First read memobj j, the write to memobj j-1, then write to memobj j
+            int32_t *addrj = (int32_t *)&objs[j];
+            int32_t *addrj1 = (int32_t *)&objs[j-1];
+
+            int32_t val = mem_read(tid, addrj);
+            mem_write(tid, addrj1, val + 1);
+
+            val = mem_read(tid, addrj1);
+            mem_write(tid, addrj, val + 2);
         }
     }
 
@@ -77,6 +119,8 @@ typedef void *(*thr_fn_t)(void *dummyid);
 static thr_fn_t thr_fn[] = {
     access_thr_fn1,
     access_thr_fn2,
+    access_thr_fn3,
+    access_thr_fn4,
 };
 
 int main(int argc, const char *argv[]) {
