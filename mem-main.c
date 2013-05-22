@@ -139,7 +139,7 @@ int main(int argc, const char *argv[]) {
     mem_init((tid_t)nthr);
 
     for (long i = 0; i < nthr; i++) {
-        if (pthread_create(&thr[i], NULL, thr_fn[i], (void *)i) != 0) {
+        if (pthread_create(&thr[i], NULL, thr_fn[i % sizeof(thr_fn)/sizeof(thr_fn[0])], (void *)i) != 0) {
             printf("thread creation failed\n");
             exit(1);
         }
