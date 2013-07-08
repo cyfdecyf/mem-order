@@ -60,12 +60,26 @@ static inline objid_t obj_id(void *addr) {
 
 // Initialization function. Must called after nthr and thread
 // data storage is initialized.
+#ifndef DUMMY
 void mem_init(tid_t nthr);
 void mem_init_thr(tid_t tid);
 void mem_finish_thr();
 
 int32_t mem_read(tid_t tid, int32_t *addr);
 void    mem_write(tid_t tid, int32_t *addr, int32_t val);
+#else // DUMMY
+static inline int32_t mem_read(tid_t tid, int32_t *addr) {
+    return *addr;
+}
+
+static inline void mem_write(tid_t tid, int32_t *addr, int32_t val) {
+    *addr = val;
+}
+
+static inline void mem_init(tid_t nthr) {}
+static inline void mem_init_thr(tid_t tid) {}
+static inline void mem_finish_thr() {}
+#endif
 
 void print_objs(void);
 

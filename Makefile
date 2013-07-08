@@ -1,7 +1,7 @@
 CC = gcc
-CFLAGS = -std=gnu99 -g -O3 -Wall
+CFLAGS = -std=gnu99 -g -O2 -Wall
 CXX = g++
-CXXFLAGS = -g -O3 -Wall
+CXXFLAGS = -g -O2 -Wall
 
 LDFLAGS = -lpthread
 MEMOBJS = mem.o log.o
@@ -12,7 +12,8 @@ SRC = mem.c mem-main.c
 
 all: $(TARG)
 
-dummy-acc: $(MEMOBJS) mem-dummy.o mem-main.o
+dummy-acc: $(MEMOBJS) mem-main.o
+	$(CC) -O2 $(CFLAGS) -c -DDUMMY mem-main.c
 	$(call cc-link-command)
 
 record: $(MEMOBJS) mem-record.o mem-main.o
