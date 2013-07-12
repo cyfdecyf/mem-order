@@ -51,24 +51,24 @@ typedef struct {
     int size;
 
     // For debugging, check whether there's concurrent access. More details in
-    // next_wait_memop().
+    // next_reader_memop().
     pthread_mutex_t mutex;
 } ReplayWaitMemopLog;
 
-ReplayWaitMemopLog *wait_memop_log;
+ReplayWaitMemopLog *wait_reader_log;
 
 #ifdef BINARY_LOG
 
-static void load_wait_memop_log() {
+static void load_wait_reader_log() {
     MappedLog memop_log, index_log;
-    wait_memop_log = calloc_check(NOBJS, sizeof(*wait_memop_log), "Can't allocate wait_memop");
+    wait_reader_log = calloc_check(NOBJS, sizeof(*wait_reader_log), "Can't allocate wait_memop");
 
     if (open_mapped_log_path(LOGDIR"memop", &memop_log) != 0) {
         DPRINTF("Can't open memop log\n");
         for (int i = 0; i < NOBJS; i++) {
-            wait_memop_log[i].log = NULL;
-            wait_memop_log[i].n = 0;
-            wait_memop_log[i].size = -1;
+            wait_reader_log[i].log = NULL;
+            wait_reader_log[i].n = 0;
+            wait_reader_log[i].size = -1;
         }
         return;
     }
@@ -81,18 +81,18 @@ static void load_wait_memop_log() {
 
     ReplayWaitMemop *log_start = (ReplayWaitMemop *)memop_log.buf;
     for (int i = 0; i < NOBJS; i++) {
-        wait_memop_log[i].n = 0;
-        pthread_mutex_init(&wait_memop_log[i].mutex, NULL);
+        wait_reader_log[i].n = 0;
+        pthread_mutex_init(&wait_reader_log[i].mutex, NULL);
         if (*index == -1) {
-            wait_memop_log[i].log = NULL;
-            wait_memop_log[i].size = -1;
+            wait_reader_log[i].log = NULL;
+            wait_reader_log[i].size = -1;
             index += 2;
             continue;
         }
-        DPRINTF("wait_memop_log[%d] index = %d size = %d\n", i,
+        DPRINTF("wait_reader_log[%d] index = %d size = %d\n", i,
             *index, *(index + 1));
-        wait_memop_log[i].log = &log_start[*index++];
-        wait_memop_log[i].size = *index++;
+        wait_reader_log[i].log = &log_start[*index++];
+        wait_reader_log[i].size = *index++;
     }
     unmap_log(&index_log);
 }
@@ -101,7 +101,7 @@ static void load_wait_memop_log() {
 
 enum { INIT_LOG_CNT = 1000 };
 
-static inline int read_wait_memop_log(FILE *log, ReplayWaitMemop *ent, objid_t *objid) {
+static inline int read_wait_reader_log(FILE *log, ReplayWaitMemop *ent, objid_t *objid) {
     if (fscanf(log, "%d %d %d %hhd", objid, &ent->version, &ent->memop,
             &ent->tid) != 4) {
         return 0;
@@ -109,20 +109,20 @@ static inline int read_wait_memop_log(FILE *log, ReplayWaitMemop *ent, objid_t *
     return 1;
 }
 
-static void load_wait_memop_log() {
+static void load_wait_reader_log() {
     FILE *logfile = fopen("memop", "r");
     if (! logfile) {
         printf("Can't open memop\n");
         exit(1);
     }
 
-    wait_memop_log = calloc_check(NOBJS, sizeof(*wait_memop_log), "Can't allocate wait_memop");
+    wait_reader_log = calloc_check(NOBJS, sizeof(*wait_reader_log), "Can't allocate wait_memop");
 
-    int wait_memoplogsize = INIT_LOG_CNT * sizeof(wait_memop_log[0].log[0]);
+    int wait_memoplogsize = INIT_LOG_CNT * sizeof(wait_reader_log[0].log[0]);
     for (int i = 0; i < NOBJS; i++) {
-        wait_memop_log[i].log = calloc_check(1, wait_memoplogsize, "Can't allocate wait_memop[i].log");
-        wait_memop_log[i].size = INIT_LOG_CNT;
-        wait_memop_log[i].n = 0;
+        wait_reader_log[i].log = calloc_check(1, wait_memoplogsize, "Can't allocate wait_memop[i].log");
+        wait_reader_log[i].size = INIT_LOG_CNT;
+        wait_reader_log[i].n = 0;
     }
 
     objid_t objid;
@@ -130,71 +130,71 @@ static void load_wait_memop_log() {
     while (fscanf(logfile, "%d %d %d %hhd", &objid, &ent.version, &ent.memop, &ent.tid) == 4) {
         assert(objid < NOBJS);
 
-        int n = wait_memop_log[objid].n;
+        int n = wait_reader_log[objid].n;
         // Need to enlarge log array
-        if (n >= wait_memop_log[objid].size) {
-            unsigned int mem_size = wait_memop_log[objid].size * sizeof(wait_memop_log[0].log[0]) * 2;
-            ReplayWaitMemop *new_log = realloc(wait_memop_log[objid].log, mem_size);
+        if (n >= wait_reader_log[objid].size) {
+            unsigned int mem_size = wait_reader_log[objid].size * sizeof(wait_reader_log[0].log[0]) * 2;
+            ReplayWaitMemop *new_log = realloc(wait_reader_log[objid].log, mem_size);
             if (! new_log) {
                 printf("Can't reallocate for wait_memop[%d].log\n", objid);
                 exit(1);
             }
-            wait_memop_log[objid].log = new_log;
-            wait_memop_log[objid].size *= 2;
+            wait_reader_log[objid].log = new_log;
+            wait_reader_log[objid].size *= 2;
         }
 
-        wait_memop_log[objid].log[n] = ent;
-        wait_memop_log[objid].n++;
+        wait_reader_log[objid].log[n] = ent;
+        wait_reader_log[objid].n++;
     }
 
     for (int i = 0; i < NOBJS; ++i) {
         // size is then used as index to the last log.
         // n is then used as the index to the next unused log
-        wait_memop_log[i].size = wait_memop_log[i].n - 1;
+        wait_reader_log[i].size = wait_reader_log[i].n - 1;
     }
 }
 #endif // BINARY_LOG
 
-ReplayWaitMemop *next_wait_memop(objid_t objid) {
+ReplayWaitMemop *next_reader_memop(objid_t objid) {
     // There should be no concurrent access to an object's memop log.
     // The mutex is a assertion on this.
-    if (pthread_mutex_trylock(&wait_memop_log[objid].mutex) != 0) {
+    if (pthread_mutex_trylock(&wait_reader_log[objid].mutex) != 0) {
         printf("concurrent access to same object's memop log\n");
         abort();
     }
-    if (wait_memop_log[objid].n >= wait_memop_log[objid].size) {
-        /*DPRINTF("T%d W%d B%d no more wait memop log\n", tid, memop, objid);*/
-        pthread_mutex_unlock(&wait_memop_log[objid].mutex);
+    if (wait_reader_log[objid].n >= wait_reader_log[objid].size) {
+        /*DPRINTF("T%d W%d B%d no more wait reader log\n", tid, memop, objid);*/
+        pthread_mutex_unlock(&wait_reader_log[objid].mutex);
         return NULL;
     }
 
     int i;
-    ReplayWaitMemop *log = wait_memop_log[objid].log;
+    ReplayWaitMemop *log = wait_reader_log[objid].log;
     version_t version = obj_version[objid];
     // Search if there's any read get the current version.
-    DPRINTF("T%hhd W%d B%d wait memop search for X @%d idx[%d] = %d\n",
-            tid, memop, objid, version, objid, wait_memop_log[objid][n]);
+    DPRINTF("T%hhd W%d B%d wait reader search for X @%d idx[%d] = %d\n",
+            tid, memop, objid, version, objid, wait_reader_log[objid][n]);
     // XXX As memop log index is shared among cores, can't skip log with the
     // same tid to the checking core itself because other cores need this log
-    for (i = wait_memop_log[objid].n;
-        i < wait_memop_log[objid].size && version > log[i].version;
+    for (i = wait_reader_log[objid].n;
+        i < wait_reader_log[objid].size && version > log[i].version;
         i++);
 
-    if (i < wait_memop_log[objid].size && version == log[i].version) {
+    if (i < wait_reader_log[objid].size && version == log[i].version) {
         // This log is used, so start from next one on next scan.
-        wait_memop_log[objid].n = i + 1;
-        pthread_mutex_unlock(&wait_memop_log[objid].mutex);
+        wait_reader_log[objid].n = i + 1;
+        pthread_mutex_unlock(&wait_reader_log[objid].mutex);
         return &log[i];
     }
-    wait_memop_log[objid].n = i;
-    DPRINTF("T%d W%d B%d wait memop No X @%d found idx[%d] = %d\n",
+    wait_reader_log[objid].n = i;
+    DPRINTF("T%d W%d B%d wait reader No X @%d found idx[%d] = %d\n",
         tid, memop, objid, version, objid, i);
-    pthread_mutex_unlock(&wait_memop_log[objid].mutex);
+    pthread_mutex_unlock(&wait_reader_log[objid].mutex);
     return NULL;
 }
 
 void mem_init(tid_t nthr) {
-    load_wait_memop_log();
+    load_wait_reader_log();
 
     obj_version = calloc_check(NOBJS, sizeof(*obj_version), "Can't allocate obj_version");
     memop_cnt = calloc_check(nthr, sizeof(*memop_cnt), "Can't allocate memop_cnt");
@@ -234,6 +234,19 @@ static void wait_object_version(int objid, const char op) {
     }
 }
 
+static void wait_reader(int objid) {
+    // Wait memory accesses that happen at this version.
+    ReplayWaitMemop *log;
+    while ((log = next_reader_memop(objid)) != NULL) {
+        DPRINTF("T%d W%d B%d wait reader T%d X%d\n", tid, memop, objid,
+            log->tid, log->memop);
+        while (*memop_cnt[log->tid] <= log->memop) {
+            cpu_relax();
+        }
+        DPRINTF("T%d W%d B%d wait reader done\n", tid, memop, objid);
+    }
+}
+
 int32_t mem_read(tid_t tid, int32_t *addr) {
     int val;
     objid_t objid = obj_id(addr);
@@ -250,17 +263,7 @@ void mem_write(tid_t tid, int32_t *addr, int32_t val) {
     int objid = obj_id(addr);
 
     wait_object_version(objid, 'W');
-
-    // Wait memory accesses that happen at this version.
-    ReplayWaitMemop *log;
-    while ((log = next_wait_memop(objid)) != NULL) {
-        DPRINTF("T%d W%d B%d wait memop T%d X%d\n", tid, memop, objid,
-            log->tid, log->memop);
-        while (*memop_cnt[log->tid] <= log->memop) {
-            cpu_relax();
-        }
-        DPRINTF("T%d W%d B%d wait memop done\n", tid, memop, objid);
-    }
+    wait_reader(objid);
 
     *addr = val;
     obj_version[objid] += 1;
