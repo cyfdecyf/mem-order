@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <pthread.h>
 
 // #define DEBUG
 #include "debug.h"
@@ -48,10 +49,13 @@ typedef struct {
     ReplayWaitMemop *log;
     int n;
     int size;
+
+    // For debugging, check whether there's concurrent access. More details in
+    // next_wait_memop().
+    pthread_mutex_t mutex;
 } ReplayWaitMemopLog;
 
 ReplayWaitMemopLog *wait_memop_log;
-__thread int *wait_memop_idx;
 
 #ifdef BINARY_LOG
 
@@ -77,9 +81,10 @@ static void load_wait_memop_log() {
 
     ReplayWaitMemop *log_start = (ReplayWaitMemop *)memop_log.buf;
     for (int i = 0; i < NOBJS; i++) {
+        wait_memop_log[i].n = 0;
+        pthread_mutex_init(&wait_memop_log[i].mutex, NULL);
         if (*index == -1) {
             wait_memop_log[i].log = NULL;
-            wait_memop_log[i].n = 0;
             wait_memop_log[i].size = -1;
             index += 2;
             continue;
@@ -87,7 +92,6 @@ static void load_wait_memop_log() {
         DPRINTF("wait_memop_log[%d] index = %d size = %d\n", i,
             *index, *(index + 1));
         wait_memop_log[i].log = &log_start[*index++];
-        wait_memop_log[i].n = 0;
         wait_memop_log[i].size = *index++;
     }
     unmap_log(&index_log);
@@ -152,8 +156,15 @@ static void load_wait_memop_log() {
 #endif // BINARY_LOG
 
 ReplayWaitMemop *next_wait_memop(objid_t objid) {
-    if (wait_memop_idx[objid] >= wait_memop_log[objid].size) {
+    // There should be no concurrent access to an object's memop log.
+    // The mutex is a assertion on this.
+    if (pthread_mutex_trylock(&wait_memop_log[objid].mutex) != 0) {
+        printf("concurrent access to same object's memop log\n");
+        abort();
+    }
+    if (wait_memop_log[objid].n >= wait_memop_log[objid].size) {
         /*DPRINTF("T%d W%d B%d no more wait memop log\n", tid, memop, objid);*/
+        pthread_mutex_unlock(&wait_memop_log[objid].mutex);
         return NULL;
     }
 
@@ -161,19 +172,24 @@ ReplayWaitMemop *next_wait_memop(objid_t objid) {
     ReplayWaitMemop *log = wait_memop_log[objid].log;
     version_t version = obj_version[objid];
     // Search if there's any read get the current version.
-    DPRINTF("T%hhd W%d B%d wait memop search for X @%d wait_memop_idx[%d] = %d\n",
-            tid, memop, objid, version, objid, wait_memop_idx[objid]);
-    for (i = wait_memop_idx[objid];
-        i < wait_memop_log[objid].size && (version > log[i].version || log[i].tid == tid);
-        ++i);
+    DPRINTF("T%hhd W%d B%d wait memop search for X @%d idx[%d] = %d\n",
+            tid, memop, objid, version, objid, wait_memop_log[objid][n]);
+    // XXX As memop log index is shared among cores, can't skip log with the
+    // same tid to the checking core itself because other cores need this log
+    for (i = wait_memop_log[objid].n;
+        i < wait_memop_log[objid].size && version > log[i].version;
+        i++);
 
     if (i < wait_memop_log[objid].size && version == log[i].version) {
-        wait_memop_idx[objid] = i + 1;
+        // This log is used, so start from next one on next scan.
+        wait_memop_log[objid].n = i + 1;
+        pthread_mutex_unlock(&wait_memop_log[objid].mutex);
         return &log[i];
     }
-    wait_memop_idx[objid] = i;
-    DPRINTF("T%d W%d B%d wait memop No X @%d found wait_memop_idx[%d] = %d\n",
+    wait_memop_log[objid].n = i;
+    DPRINTF("T%d W%d B%d wait memop No X @%d found idx[%d] = %d\n",
         tid, memop, objid, version, objid, i);
+    pthread_mutex_unlock(&wait_memop_log[objid].mutex);
     return NULL;
 }
 
@@ -186,8 +202,6 @@ void mem_init(tid_t nthr) {
 
 void mem_init_thr(tid_t tid) {
     memop_cnt[tid] = &memop;
-
-    wait_memop_idx = calloc_check(NOBJS, sizeof(wait_memop_idx[0]), "Can't allocate wait_memop_idx[i]");
 
 #ifdef BINARY_LOG
     if (open_mapped_log("version", tid, &wait_version_log) != 0) {
