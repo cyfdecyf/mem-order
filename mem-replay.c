@@ -9,7 +9,7 @@
 // #define DEBUG
 #include "debug.h"
 
-volatile version_t *obj_version;
+version_t *obj_version;
 
 __thread memop_t memop;
 memop_t **memop_cnt;
