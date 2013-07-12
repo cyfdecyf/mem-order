@@ -138,7 +138,8 @@ static inline void log_other_wait_memop(tid_t tid, objid_t objid, last_objinfo_t
 
 static inline void log_order(tid_t tid, objid_t objid, version_t current_version, last_objinfo_t *lastobj) {
     log_wait_version(tid, current_version);
-    log_other_wait_memop(tid, objid, lastobj);
+    if (lastobj->memop >= 0)
+        log_other_wait_memop(tid, objid, lastobj);
 }
 
 #define likely(x) __builtin_expect(!!(x), 1)
@@ -273,7 +274,7 @@ void mem_write(tid_t tid, int32_t *addr, int32_t val) {
     log_access('W', objid, version / 2, memop, val);
 #endif
 
-    lastobj->memop = memop;
+    lastobj->memop = ~memop; // flip to mark last memop as write
     lastobj->version = version + 2;
     memop++;
 }
@@ -287,7 +288,8 @@ void mem_finish_thr() {
     // need to be waited by any thread as it's not executed by the program.
     for (int i = 0; i < NOBJS; i++) {
         /*DPRINTF("T%hhd last RD obj %d @%d\n", tid, i, last[i].version / 2);*/
-        if (last[i].version != objinfo[i].version) {
+        if (last[i].version != objinfo[i].version &&
+                last[i].memop >= 0) {
             log_other_wait_memop(tid, i, &last[i]);
         }
     }
