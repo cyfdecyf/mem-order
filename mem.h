@@ -27,29 +27,29 @@ typedef int objid_t;
 typedef long memop_t;
 typedef int8_t tid_t;
 
-// WaitMemop is used when recording
-typedef struct {
+// wait_memop is used when recording.
+struct wait_memop {
     objid_t objid;
     version_t version;
     memop_t memop;
-} WaitMemop;
+};
 
-// Version log does not need preprocessing during replay
-typedef struct {
+// Version log does not need preprocessing during replay.
+struct wait_version {
     memop_t memop;
     version_t version;
-} WaitVersion;
+};
 
-/*extern int WaitMemop_wrong_size[sizeof(WaitMemop) ==
+/*extern int struct wait_memop_wrong_size[sizeof(struct wait_memop) ==
     (sizeof(objid_t) + sizeof(version_t) + sizeof(memop_t)) ? 1 : -1];*/
 
-// Used during replay
-typedef struct {
+// Used during replay.
+struct replay_wait_memop {
     // Order of field must match with binary log
     version_t version;
     memop_t memop;
     tid_t tid;
-} ReplayWaitMemop;
+};
 
 // objs are aligned to OBJ_SIZE
 extern int64_t *objs;

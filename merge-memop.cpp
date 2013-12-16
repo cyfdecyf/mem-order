@@ -15,8 +15,8 @@ using namespace std;
 
 struct QueEnt {
 	tid_t tid;
-	WaitMemop wop;
-	QueEnt(tid_t t, const WaitMemop &w) : tid(t), wop(w) {} 
+	struct wait_memop wop;
+	QueEnt(tid_t t, const struct wait_memop &w) : tid(t), wop(w) {} 
 
 	bool operator>(const QueEnt &rhs) const {
 		if (wop.objid == rhs.wop.objid) {
@@ -29,15 +29,15 @@ struct QueEnt {
 
 typedef priority_queue<QueEnt, vector<QueEnt>, greater<QueEnt> > LogQueue;
 
-static inline void enqueue_next_waitmemop(LogQueue &pq, MappedLog &log, WaitMemop &wop, tid_t tid) {
+static inline void enqueue_next_waitmemop(LogQueue &pq, struct mapped_log &log, struct wait_memop &wop, tid_t tid) {
 	if (log.buf < log.end) {
-		memcpy(&wop, log.buf, sizeof(WaitMemop));
-		log.buf += sizeof(WaitMemop);
+		memcpy(&wop, log.buf, sizeof(struct wait_memop));
+		log.buf += sizeof(struct wait_memop);
 		pq.push(QueEnt(tid, wop));
 	}
 }
 
-static void merge_memop(vector<MappedLog> &log, tid_t nthr) {
+static void merge_memop(vector<struct mapped_log> &log, tid_t nthr) {
 	LogQueue pq;
 
 	unsigned long total_size = 0;
@@ -56,10 +56,10 @@ static void merge_memop(vector<MappedLog> &log, tid_t nthr) {
 	if (total_size == 0) {
 		exit(1);
 	}
-	assert(total_size % sizeof(WaitMemop) == 0);
+	assert(total_size % sizeof(struct wait_memop) == 0);
 	// we need to add a tid record to each log entry
-	int entrycount = total_size / sizeof(WaitMemop);
-	ReplayWaitMemop *next_mwm = (ReplayWaitMemop *)create_mapped_file(LOGDIR"memop",
+	int entrycount = total_size / sizeof(struct wait_memop);
+	struct replay_wait_memop *next_mwm = (struct replay_wait_memop *)create_mapped_file(LOGDIR"memop",
 		entrycount * sizeof(*next_mwm));
 	DPRINTF("created memop log\n");
 
@@ -68,7 +68,7 @@ static void merge_memop(vector<MappedLog> &log, tid_t nthr) {
 		NOBJS * sizeof(int) * 2);
 	DPRINTF("created memop-index log\n");
 
-	WaitMemop wop;
+	struct wait_memop wop;
 	for (int i = 0; i < nthr; ++i) {
 		if (log[i].fd == -1)
 			continue;
@@ -126,9 +126,9 @@ static void merge_memop(vector<MappedLog> &log, tid_t nthr) {
 		// this is not needed. Keep it here because this is useful info for manual inspecting
 		// the log.
 		/*
-		memcpy(outbuf, &qe.wop, sizeof(WaitMemop));
-		*(int *)(outbuf + sizeof(WaitMemop)) = qe.tid;
-		outbuf += sizeof(WaitMemop) + sizeof(int);
+		memcpy(outbuf, &qe.wop, sizeof(struct wait_memop));
+		*(int *)(outbuf + sizeof(struct wait_memop)) = qe.tid;
+		outbuf += sizeof(struct wait_memop) + sizeof(int);
 		*/
 
 		enqueue_next_waitmemop(pq, log[qe.tid], wop, qe.tid);	
@@ -155,8 +155,8 @@ int main(int argc, char const *argv[]) {
     istringstream nthrs(argv[1]);
     nthrs >> nthr;
 
-    vector<MappedLog> log;
-    MappedLog l;
+    vector<struct mapped_log> log;
+    struct mapped_log l;
     for (int i = 0; i < nthr; ++i) {
         // Push the log structure into the vector even if open failed
         open_mapped_log("sorted-memop", i, &l);

@@ -30,7 +30,7 @@ FILE *open_log(const char *name, long id) {
     return handle_log(name, id, "r");
 }
 
-int new_mapped_log(const char *name, int id, MappedLog *log) {
+int new_mapped_log(const char *name, int id, struct mapped_log *log) {
     char path[MAX_PATH_LEN];
     logpath(path, name, id);
 
@@ -61,7 +61,7 @@ int new_mapped_log(const char *name, int id, MappedLog *log) {
     return 0;
 }
 
-int enlarge_mapped_log(MappedLog *log) {
+int enlarge_mapped_log(struct mapped_log *log) {
     struct stat sb;
     if (fstat(log->fd, &sb) == -1) {
         perror("fstat in enlarge_mapped_log");
@@ -107,7 +107,7 @@ int enlarge_mapped_log(MappedLog *log) {
     return 0;
 }
 
-int open_mapped_log_path(const char *path, MappedLog *log) {
+int open_mapped_log_path(const char *path, struct mapped_log *log) {
     log->fd = open(path, O_RDONLY);
     if (log->fd == -1) {
         // Make start, buf and end all the same. This marks that the log is empty.
@@ -133,14 +133,14 @@ int open_mapped_log_path(const char *path, MappedLog *log) {
     return 0;
 }
 
-int open_mapped_log(const char *name, int id, MappedLog *log) {
+int open_mapped_log(const char *name, int id, struct mapped_log *log) {
     char path[MAX_PATH_LEN];
     logpath(path, name, id);
 
     return open_mapped_log_path(path, log);
 }
 
-int unmap_log(MappedLog *log) {
+int unmap_log(struct mapped_log *log) {
     if (munmap(log->start, log->end - log->start) == -1) {
         perror("munmap");
         return -1;

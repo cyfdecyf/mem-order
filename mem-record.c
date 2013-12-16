@@ -7,27 +7,27 @@
 // #define DEBUG
 #include "debug.h"
 
-typedef struct {
+struct objinfo {
     /* Version is like write counter */
     volatile version_t version;
     spinlock write_lock;
-} objinfo_t;
+};
 
 // Information of each thread's last access
-typedef struct {
+struct last_objinfo {
     version_t version;
     memop_t memop;
-} last_objinfo_t;
+};
 
-objinfo_t *objinfo;
+struct objinfo *objinfo;
 
-__thread last_objinfo_t * last;
+__thread struct last_objinfo * last;
 __thread memop_t memop;
 
 #ifdef BINARY_LOG
 __thread struct {
-    MappedLog wait_version;
-    MappedLog wait_memop;
+    struct mapped_log wait_version;
+    struct mapped_log wait_memop;
 } logs;
 #else
 __thread struct {
@@ -37,7 +37,7 @@ __thread struct {
 #endif
 
 #ifdef DEBUG
-__thread MappedLog debug_access_log;
+__thread struct mapped_log debug_access_log;
 
 typedef struct {
     char acc;
@@ -86,24 +86,24 @@ void mem_init_thr(tid_t tid) {
 
 #ifdef BINARY_LOG
 
-static inline WaitVersion *next_version_log(MappedLog *log) {
-    return (WaitVersion *)next_log_entry(log, sizeof(WaitVersion));
+static inline struct wait_version *next_version_log(struct mapped_log *log) {
+    return (struct wait_version *)next_log_entry(log, sizeof(struct wait_version));
 }
 
 static inline void log_wait_version(tid_t tid, version_t current_version) {
-    WaitVersion *l = next_version_log(&logs.wait_version);
+    struct wait_version *l = next_version_log(&logs.wait_version);
 
     l->memop = memop;
     l->version = current_version / 2;
 }
 
-static inline WaitMemop *next_memop_log(MappedLog *log) {
-    return (WaitMemop *)next_log_entry(log, sizeof(WaitMemop));
+static inline struct wait_memop *next_memop_log(struct mapped_log *log) {
+    return (struct wait_memop *)next_log_entry(log, sizeof(struct wait_memop));
 }
 
 static inline void log_other_wait_memop(tid_t tid, objid_t objid,
-        last_objinfo_t *lastobj) {
-    WaitMemop *l = next_memop_log(&logs.wait_memop);
+        struct last_objinfo *lastobj) {
+    struct wait_memop *l = next_memop_log(&logs.wait_memop);
 
     l->objid = objid;
     l->version = lastobj->version / 2;
@@ -112,11 +112,11 @@ static inline void log_other_wait_memop(tid_t tid, objid_t objid,
 
 static inline void mark_log_end(tid_t tid) {
     // printf("T%d %d logent\n", (int)tid, logcnt);
-    WaitVersion *l = next_version_log(&logs.wait_version);
+    struct wait_version *l = next_version_log(&logs.wait_version);
     l->memop = -1;
     l->version = -1;
 
-    WaitMemop *k = next_memop_log(&logs.wait_memop);
+    struct wait_memop *k = next_memop_log(&logs.wait_memop);
 
     k->objid = -1;
     k->version = -1;
@@ -130,13 +130,13 @@ static inline void log_wait_version(tid_t tid, version_t current_version) {
 }
 
 // Wait memop is used by other thread to wait the last memory access of self.
-static inline void log_other_wait_memop(tid_t tid, objid_t objid, last_objinfo_t *lastobj) {
+static inline void log_other_wait_memop(tid_t tid, objid_t objid, struct last_objinfo *lastobj) {
     fprintf(logs.wait_memop, "%d %d %d\n", (int)objid, (int)(lastobj->version / 2),
         lastobj->memop);
 }
 #endif // BINARY_LOG
 
-static inline void log_order(tid_t tid, objid_t objid, version_t current_version, last_objinfo_t *lastobj) {
+static inline void log_order(tid_t tid, objid_t objid, version_t current_version, struct last_objinfo *lastobj) {
     log_wait_version(tid, current_version);
     if (lastobj->memop >= 0)
         log_other_wait_memop(tid, objid, lastobj);
@@ -149,7 +149,7 @@ int32_t mem_read(tid_t tid, int32_t *addr) {
     version_t version;
     int32_t val;
     objid_t objid = obj_id(addr);
-    objinfo_t *info = &objinfo[objid];
+    struct objinfo *info = &objinfo[objid];
 
     // Avoid reording version reading before version writing the previous
     // mem_write
@@ -211,7 +211,7 @@ int32_t mem_read(tid_t tid, int32_t *addr) {
         // Re-read if there's writer
     } while (version != info->version);
 
-    last_objinfo_t *lastobj = &last[objid];
+    struct last_objinfo *lastobj = &last[objid];
 
     // If version changed since last read, there must be writes to this object.
     // 1. During replay, this read should wait the object reach to the current
@@ -242,7 +242,7 @@ int32_t mem_read(tid_t tid, int32_t *addr) {
 void mem_write(tid_t tid, int32_t *addr, int32_t val) {
     version_t version;
     objid_t objid = obj_id(addr);
-    objinfo_t *info = &objinfo[objid];
+    struct objinfo *info = &objinfo[objid];
 
     spin_lock(&info->write_lock);
 
@@ -260,7 +260,7 @@ void mem_write(tid_t tid, int32_t *addr, int32_t val) {
 
     spin_unlock(&info->write_lock);
 
-    last_objinfo_t *lastobj = &last[objid];
+    struct last_objinfo *lastobj = &last[objid];
 
     if (lastobj->version != version) {
         log_order(tid, objid, version, lastobj);

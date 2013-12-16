@@ -14,14 +14,14 @@ version_t *obj_version;
 __thread memop_t memop;
 memop_t **memop_cnt;
 
-__thread WaitVersion wait_version;
+__thread struct wait_version wait_version;
 
 #ifdef BINARY_LOG
-__thread MappedLog wait_version_log;
+__thread struct mapped_log wait_version_log;
 
 static inline void next_wait_version_log() {
-    MappedLog *log = &wait_version_log;
-    WaitVersion *wv = (WaitVersion *)(log->buf);
+    struct mapped_log *log = &wait_version_log;
+    struct wait_version *wv = (struct wait_version *)(log->buf);
 
     if (wv->memop == -1) {
         wait_version.memop = -1;
@@ -36,7 +36,7 @@ static inline void next_wait_version_log() {
 __thread FILE *wait_version_log;
 
 static inline void next_wait_version_log() {
-    WaitVersion *ent = &wait_version;
+    struct wait_version *ent = &wait_version;
 
     if (fscanf(wait_version_log, "%d %d", &ent->version,
             &ent->memop) != 2) {
@@ -45,22 +45,22 @@ static inline void next_wait_version_log() {
 }
 #endif // BINARY_LOG
 
-typedef struct {
-    ReplayWaitMemop *log;
+struct replay_wait_memop_log {
+    struct replay_wait_memop *log;
     int n;
     int size;
 
     // For debugging, check whether there's concurrent access. More details in
     // next_reader_memop().
     pthread_mutex_t mutex;
-} ReplayWaitMemopLog;
+};
 
-ReplayWaitMemopLog *wait_reader_log;
+struct replay_wait_memop_log *wait_reader_log;
 
 #ifdef BINARY_LOG
 
 static void load_wait_reader_log() {
-    MappedLog memop_log, index_log;
+    struct mapped_log memop_log, index_log;
     wait_reader_log = calloc_check(NOBJS, sizeof(*wait_reader_log), "Can't allocate wait_memop");
 
     if (open_mapped_log_path(LOGDIR"memop", &memop_log) != 0) {
@@ -79,7 +79,7 @@ static void load_wait_reader_log() {
     }
     int *index = (int *)index_log.buf;
 
-    ReplayWaitMemop *log_start = (ReplayWaitMemop *)memop_log.buf;
+    struct replay_wait_memop *log_start = (struct replay_wait_memop *)memop_log.buf;
     for (int i = 0; i < NOBJS; i++) {
         wait_reader_log[i].n = 0;
         pthread_mutex_init(&wait_reader_log[i].mutex, NULL);
@@ -101,7 +101,7 @@ static void load_wait_reader_log() {
 
 enum { INIT_LOG_CNT = 1000 };
 
-static inline int read_wait_reader_log(FILE *log, ReplayWaitMemop *ent, objid_t *objid) {
+static inline int read_wait_reader_log(FILE *log, struct replay_wait_memop *ent, objid_t *objid) {
     if (fscanf(log, "%d %d %d %hhd", objid, &ent->version, &ent->memop,
             &ent->tid) != 4) {
         return 0;
@@ -126,7 +126,7 @@ static void load_wait_reader_log() {
     }
 
     objid_t objid;
-    ReplayWaitMemop ent;
+    struct replay_wait_memop ent;
     while (fscanf(logfile, "%d %d %d %hhd", &objid, &ent.version, &ent.memop, &ent.tid) == 4) {
         assert(objid < NOBJS);
 
@@ -134,7 +134,7 @@ static void load_wait_reader_log() {
         // Need to enlarge log array
         if (n >= wait_reader_log[objid].size) {
             unsigned int mem_size = wait_reader_log[objid].size * sizeof(wait_reader_log[0].log[0]) * 2;
-            ReplayWaitMemop *new_log = realloc(wait_reader_log[objid].log, mem_size);
+            struct replay_wait_memop *new_log = realloc(wait_reader_log[objid].log, mem_size);
             if (! new_log) {
                 printf("Can't reallocate for wait_memop[%d].log\n", objid);
                 exit(1);
@@ -155,7 +155,7 @@ static void load_wait_reader_log() {
 }
 #endif // BINARY_LOG
 
-ReplayWaitMemop *next_reader_memop(objid_t objid) {
+struct replay_wait_memop *next_reader_memop(objid_t objid) {
     // There should be no concurrent access to an object's memop log.
     // The mutex is a assertion on this.
     if (pthread_mutex_trylock(&wait_reader_log[objid].mutex) != 0) {
@@ -169,7 +169,7 @@ ReplayWaitMemop *next_reader_memop(objid_t objid) {
     }
 
     int i;
-    ReplayWaitMemop *log = wait_reader_log[objid].log;
+    struct replay_wait_memop *log = wait_reader_log[objid].log;
     version_t version = obj_version[objid];
     // Search if there's any read get the current version.
     DPRINTF("T%hhd W%d B%d wait reader search for X @%d idx[%d] = %d\n",
@@ -236,7 +236,7 @@ static void wait_object_version(int objid, const char op) {
 
 static void wait_reader(int objid) {
     // Wait memory accesses that happen at this version.
-    ReplayWaitMemop *log;
+    struct replay_wait_memop *log;
     while ((log = next_reader_memop(objid)) != NULL) {
         DPRINTF("T%d W%d B%d wait reader T%d X%d\n", tid, memop, objid,
             log->tid, log->memop);
