@@ -9,6 +9,7 @@ extern "C" {
 #endif
 
 // #define BENCHMARK
+#define BATCH_LOG_TAKE
 
 #ifdef BENCHMARK
 #  define NITER 500000

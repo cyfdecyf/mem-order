@@ -19,9 +19,9 @@ struct last_objinfo {
     memop_t memop;
 };
 
-struct objinfo *objinfo;
+struct objinfo *g_objinfo;
 
-__thread struct last_objinfo * last;
+__thread struct last_objinfo *g_last;
 __thread memop_t memop;
 
 #ifdef BINARY_LOG
@@ -60,16 +60,16 @@ static inline void log_access(char acc, objid_t objid, version_t ver,
 #endif
 
 void mem_init(tid_t nthr) {
-    objinfo = calloc_check(NOBJS, sizeof(*objinfo), "objinfo");
+    g_objinfo = calloc_check(NOBJS, sizeof(*g_objinfo), "g_objinfo");
 }
 
 void mem_init_thr(tid_t tid) {
-    last = calloc_check(NOBJS, sizeof(*last),
+    g_last = calloc_check(NOBJS, sizeof(*g_last),
             "prev_info[tid]");
     for (int i = 0; i < NOBJS; i++) {
         // First memop cnt is 0, initialize last memop to -1 so we can
         // distinguish whether there's a last read or not.
-        last[i].memop = -1;
+        g_last[i].memop = -1;
     }
 #ifdef BINARY_LOG
     new_mapped_log("version", tid, &logs.wait_version);
@@ -145,11 +145,115 @@ static inline void log_order(tid_t tid, objid_t objid, version_t current_version
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
+#ifdef BATCH_LOG_TAKE
+enum {
+    OP_WRITE = 0,
+    OP_READ,
+};
+
+// memacc records basic information for memory access that can be checked
+// to take ordering logs.
+struct memacc {
+    objid_t objid; // Use negative objid to mark write.
+    version_t version;
+};
+
+#define BATCH_LOG_SIZE 10
+
+static __thread struct memacc g_memacc_q[BATCH_LOG_SIZE];
+static __thread int g_memacc_idx;
+#endif
+
+#ifdef BATCH_LOG_TAKE
+static inline void take_log(struct memacc *acc) {
+    char is_write = acc->objid < 0;
+    objid_t objid = is_write ? ~acc->objid : acc->objid;
+
+    struct last_objinfo *last = &g_last[objid];
+
+    if (last->version != acc->version) {
+        log_order(tid, objid, acc->version, last);
+        last->version = acc->version;
+    }
+    if (is_write) {
+        last->version += 2;
+        last->memop = ~memop;
+    } else {
+        last->memop = memop;
+    }
+    memop++;
+}
+
 int32_t mem_read(tid_t tid, int32_t *addr) {
     version_t version;
     int32_t val;
     objid_t objid = obj_id(addr);
-    struct objinfo *info = &objinfo[objid];
+    struct objinfo *info = &g_objinfo[objid];
+
+    // Protect atomic access to version and memory.
+    do {
+        version = info->version;
+        while (unlikely(version & 1)) {
+            cpu_relax();
+            version = info->version;
+        }
+        barrier();
+        val = *addr;
+        barrier();
+    } while (version != info->version);
+
+    struct memacc *acc = &g_memacc_q[g_memacc_idx];
+    acc->objid = objid;
+    acc->version = version;
+
+    g_memacc_idx++;
+    if (g_memacc_idx == BATCH_LOG_SIZE) {
+        int i;
+        for (i = 0; i < BATCH_LOG_SIZE; i++) {
+            take_log(&g_memacc_q[i]);
+        }
+        g_memacc_idx = 0;
+    }
+    return val;
+}
+
+void mem_write(tid_t tid, int32_t *addr, int32_t val) {
+    version_t version;
+    objid_t objid = obj_id(addr);
+    struct objinfo *info = &g_objinfo[objid];
+
+    // Protect atomic access to version and memory.
+    spin_lock(&info->write_lock);
+    version = info->version;
+    barrier();
+    info->version++;
+    barrier();
+    *addr = val;
+    __sync_synchronize();
+    info->version++;
+    spin_unlock(&info->write_lock);
+
+    struct memacc *acc = &g_memacc_q[g_memacc_idx];
+    acc->objid = ~objid;
+    acc->version = version;
+
+    g_memacc_idx++;
+    if (g_memacc_idx == BATCH_LOG_SIZE) {
+        int i;
+        for (i = 0; i < BATCH_LOG_SIZE; i++) {
+            take_log(&g_memacc_q[i]);
+        }
+        g_memacc_idx = 0;
+    }
+}
+
+#else
+
+int32_t mem_read(tid_t tid, int32_t *addr) {
+    version_t version;
+    int32_t val;
+    objid_t objid = obj_id(addr);
+    struct objinfo *info = &g_objinfo[objid];
 
     // Avoid reording version reading before version writing the previous
     // mem_write
@@ -211,7 +315,7 @@ int32_t mem_read(tid_t tid, int32_t *addr) {
         // Re-read if there's writer
     } while (version != info->version);
 
-    struct last_objinfo *lastobj = &last[objid];
+    struct last_objinfo *lastobj = &g_last[objid];
 
     // If version changed since last read, there must be writes to this object.
     // 1. During replay, this read should wait the object reach to the current
@@ -242,7 +346,7 @@ int32_t mem_read(tid_t tid, int32_t *addr) {
 void mem_write(tid_t tid, int32_t *addr, int32_t val) {
     version_t version;
     objid_t objid = obj_id(addr);
-    struct objinfo *info = &objinfo[objid];
+    struct objinfo *info = &g_objinfo[objid];
 
     spin_lock(&info->write_lock);
 
@@ -260,7 +364,7 @@ void mem_write(tid_t tid, int32_t *addr, int32_t val) {
 
     spin_unlock(&info->write_lock);
 
-    struct last_objinfo *lastobj = &last[objid];
+    struct last_objinfo *lastobj = &g_last[objid];
 
     if (lastobj->version != version) {
         log_order(tid, objid, version, lastobj);
@@ -278,6 +382,7 @@ void mem_write(tid_t tid, int32_t *addr, int32_t val) {
     lastobj->version = version + 2;
     memop++;
 }
+#endif
 
 void mem_finish_thr() {
     // Must be called after all writes are done. For each object, take
@@ -288,9 +393,9 @@ void mem_finish_thr() {
     // need to be waited by any thread as it's not executed by the program.
     for (int i = 0; i < NOBJS; i++) {
         /*DPRINTF("T%hhd last RD obj %d @%d\n", tid, i, last[i].version / 2);*/
-        if (last[i].version != objinfo[i].version &&
-                last[i].memop >= 0) {
-            log_other_wait_memop(tid, i, &last[i]);
+        if (g_last[i].version != g_objinfo[i].version &&
+                g_last[i].memop >= 0) {
+            log_other_wait_memop(tid, i, &g_last[i]);
         }
     }
 #ifdef BINARY_LOG
