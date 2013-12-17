@@ -1,12 +1,14 @@
 #ifndef _MEM_H
 #define _MEM_H
 
-#include <stdint.h>
-#include <pthread.h>
-
 #ifdef __cplusplus
 extern "C" {
+#else
+// Only gcc requires this, g++ enables _GNU_SOURCE by default.
+#define _GNU_SOURCE
 #endif
+
+#include <stdint.h>
 
 //#define BENCHMARK
 #define BATCH_LOG_TAKE
@@ -52,12 +54,8 @@ struct replay_wait_memop {
     tid_t tid;
 };
 
-// objs are aligned to OBJ_SIZE
-extern int64_t *objs;
-
-static inline objid_t obj_id(void *addr) {
-    return ((long)addr - (long)objs) >> 3;
-}
+// Test program should provide obj_id implementation.
+extern objid_t (*obj_id)(void *addr);
 
 // Initialization function. Must called after nthr and thread
 // data storage is initialized.
@@ -82,15 +80,13 @@ static inline void mem_init_thr(tid_t tid) {}
 static inline void mem_finish_thr() {}
 #endif
 
-void print_objs(void);
-
 // gcc on linux supports __thread. It's much pleasant to use than using
 // global array and pthread_getspecific etc.
 extern __thread tid_t tid;
 
 // Utility function
 
-void *calloc_check(size_t nmemb, size_t size, const char *err_msg);
+void *calloc_check(long nmemb, long size, const char *err_msg);
 
 #define __constructor__ __attribute__((constructor))
 

@@ -5,6 +5,19 @@
 #include <execinfo.h>
 #include <signal.h>
 
+// objs are aligned to OBJ_SIZE
+int64_t *objs;
+
+objid_t obj_id_addcnt(void *addr) {
+    return ((long)addr - (long)objs) >> 3;
+}
+
+void print_objs(void) {
+    for (int i = 0; i < NOBJS; i++) {
+        printf("%lx\n", (long)objs[i]);
+    }
+}
+
 static void handler(int sig)
 {
     void *array[10];
@@ -123,11 +136,18 @@ static thr_fn_t thr_fn[] = {
     access_thr_fn4,
 };
 
+
 int main(int argc, const char *argv[]) {
     if (argc != 2) {
         printf("Usage: %s <no of threads>\n", argv[0]);
         exit(1);
     }
+
+    if (posix_memalign((void **)&objs, OBJ_SIZE, NOBJS * OBJ_SIZE) != 0) {
+        printf("memory allocation for objs failed\n");
+        exit(1);
+    }
+    obj_id = obj_id_addcnt;
 
     signal(SIGSEGV, handler);
 
