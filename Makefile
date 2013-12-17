@@ -5,21 +5,19 @@ CXXFLAGS = -g -O2 -Wall
 
 LDFLAGS = -lpthread
 MEMOBJS = mem.o log.o
-TARG = record play reorder-memop merge-memop
+TARG = addcnt-rec addcnt-play reorder-memop merge-memop
 TEST = mem-test
-
-SRC = mem.c mem-main.c
 
 all: $(TARG)
 
-dummy-acc: $(MEMOBJS) mem-main.o
+addcnt-dummy: $(MEMOBJS) addcnt.o
 	$(CC) -O2 $(CFLAGS) -c -DDUMMY mem-main.c
 	$(call cc-link-command)
 
-record: $(MEMOBJS) mem-record.o mem-main.o
+addcnt-rec: $(MEMOBJS) mem-record.o addcnt.o
 	$(call cc-link-command)
 
-play: $(MEMOBJS) mem-replay.o mem-main.o
+addcnt-play: $(MEMOBJS) mem-replay.o addcnt.o
 	$(call cc-link-command)
 
 mem-test: mem-test.o mem.o
@@ -35,7 +33,8 @@ reorder-memop: reorder-memop.o log.o
 merge-memop: merge-memop.o log.o
 	$(call cxx-link-command)
 
-test: $(TEST)
+test: $(TARG)
+	./test.sh 4 10
 
 clean:
 	-rm -f *.o

@@ -51,14 +51,14 @@ for i in `seq 1 $ntimes`; do
     rm -f replay-log/{memop*,version*,sorted-*}
     cecho "$i iteration"
     cecho "Record with $nthr threads"
-    ./record $nthr 2>debug-record > result-record
+    ./addcnt-rec $nthr 2>debug-record > result-record
 
     cecho "Processing log ..."
 
     process_log
 
     cecho "Replay with $nthr threads"
-    ./play $nthr 2>debug-play > result-play
+    ./addcnt-play $nthr 2>debug-play > result-play
 
     diff result-record result-play
 
