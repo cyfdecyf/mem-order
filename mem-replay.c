@@ -247,7 +247,7 @@ static void wait_reader(int objid) {
     }
 }
 
-int32_t mem_read(tid_t tid, int32_t *addr) {
+uint32_t mem_read(tid_t tid, uint32_t *addr) {
     int val;
     objid_t objid = obj_id(addr);
 
@@ -259,7 +259,7 @@ int32_t mem_read(tid_t tid, int32_t *addr) {
     return val;
 }
 
-void mem_write(tid_t tid, int32_t *addr, int32_t val) {
+void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     int objid = obj_id(addr);
 
     wait_object_version(objid, 'W');

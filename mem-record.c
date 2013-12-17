@@ -44,11 +44,11 @@ typedef struct {
     memop_t memop;
     objid_t objid;
     version_t version;
-    int32_t val;
+    uint32_t val;
 } AccessEntry;
 
 static inline void log_access(char acc, objid_t objid, version_t ver,
-        memop_t memop, int32_t val) {
+        memop_t memop, uint32_t val) {
     AccessEntry *ent = (AccessEntry *)next_log_entry(&debug_access_log, sizeof(*ent));
     ent->acc = acc;
     ent->memop = memop;
@@ -184,9 +184,9 @@ static inline void take_log(struct memacc *acc) {
     memop++;
 }
 
-int32_t mem_read(tid_t tid, int32_t *addr) {
+uint32_t mem_read(tid_t tid, uint32_t *addr) {
     version_t version;
-    int32_t val;
+    uint32_t val;
     objid_t objid = obj_id(addr);
     struct objinfo *info = &g_objinfo[objid];
 
@@ -217,7 +217,7 @@ int32_t mem_read(tid_t tid, int32_t *addr) {
     return val;
 }
 
-void mem_write(tid_t tid, int32_t *addr, int32_t val) {
+void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     version_t version;
     objid_t objid = obj_id(addr);
     struct objinfo *info = &g_objinfo[objid];
@@ -249,9 +249,9 @@ void mem_write(tid_t tid, int32_t *addr, int32_t val) {
 
 #else
 
-int32_t mem_read(tid_t tid, int32_t *addr) {
+uint32_t mem_read(tid_t tid, uint32_t *addr) {
     version_t version;
-    int32_t val;
+    uint32_t val;
     objid_t objid = obj_id(addr);
     struct objinfo *info = &g_objinfo[objid];
 
@@ -343,7 +343,7 @@ int32_t mem_read(tid_t tid, int32_t *addr) {
     return val;
 }
 
-void mem_write(tid_t tid, int32_t *addr, int32_t val) {
+void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     version_t version;
     objid_t objid = obj_id(addr);
     struct objinfo *info = &g_objinfo[objid];

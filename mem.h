@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-// #define BENCHMARK
+//#define BENCHMARK
 #define BATCH_LOG_TAKE
 
 #ifdef BENCHMARK
@@ -66,14 +66,14 @@ void mem_init(tid_t nthr);
 void mem_init_thr(tid_t tid);
 void mem_finish_thr();
 
-int32_t mem_read(tid_t tid, int32_t *addr);
-void    mem_write(tid_t tid, int32_t *addr, int32_t val);
+uint32_t mem_read(tid_t tid, uint32_t *addr);
+void    mem_write(tid_t tid, uint32_t *addr, uint32_t val);
 #else // DUMMY
-static inline int32_t mem_read(tid_t tid, int32_t *addr) {
+static inline uint32_t mem_read(tid_t tid, uint32_t *addr) {
     return *addr;
 }
 
-static inline void mem_write(tid_t tid, int32_t *addr, int32_t val) {
+static inline void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     *addr = val;
 }
 
