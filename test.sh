@@ -11,16 +11,6 @@ function cecho() {
     echo -e "$COLOR$*\e[0m"
 }
 
-function process_text_log() {
-    pushd log
-    local maxid
-    let maxid=$nthr-1
-    sort -n -k1,1 -k2,2 > "memop" <(for i in `seq 0 $maxid`; do
-        grep -v -- '-1$' memop-$i | awk "{ print \$0 \" $i\"}"
-    done)
-    popd
-}
-
 function process_binary_log() {
     local maxid
     local i

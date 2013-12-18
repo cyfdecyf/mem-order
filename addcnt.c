@@ -56,6 +56,8 @@ static inline void thr_end() {
     mem_finish_thr();
 }
 
+#define NITER 20000
+
 static void *access_thr_fn1(void *dummyid) {
     thr_start(dummyid);
 

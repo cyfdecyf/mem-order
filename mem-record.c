@@ -25,17 +25,10 @@ struct objinfo *g_objinfo;
 __thread struct last_objinfo *g_last;
 __thread memop_t memop;
 
-#ifdef BINARY_LOG
 __thread struct {
     struct mapped_log wait_version;
     struct mapped_log wait_memop;
 } logs;
-#else
-__thread struct {
-    FILE *wait_version;
-    FILE *wait_memop;
-} logs;
-#endif
 
 #ifdef DEBUG
 __thread struct mapped_log debug_access_log;
@@ -73,20 +66,13 @@ void mem_init_thr(tid_t tid) {
         // distinguish whether there's a last read or not.
         g_last[i].memop = -1;
     }
-#ifdef BINARY_LOG
     new_mapped_log("version", tid, &logs.wait_version);
     new_mapped_log("memop", tid, &logs.wait_memop);
-#else
-    logs.wait_version = new_log("version", tid);
-    logs.wait_memop = new_log("memop", tid);
-#endif
 
 #ifdef DEBUG
     new_mapped_log("debug-access", tid, &debug_access_log);
 #endif
 }
-
-#ifdef BINARY_LOG
 
 static inline struct wait_version *next_version_log(struct mapped_log *log) {
     return (struct wait_version *)next_log_entry(log, sizeof(struct wait_version));
@@ -124,19 +110,6 @@ static inline void mark_log_end(tid_t tid) {
     k->version = -1;
     k->memop = -1;
 }
-
-#else // BINARY_LOG
-// Wait version is used by thread self to wait other thread.
-static inline void log_wait_version(tid_t tid, version_t current_version) {
-    fprintf(logs.wait_version, "%d %d\n", (int)current_version / 2, (int)memop);
-}
-
-// Wait memop is used by other thread to wait the last memory access of self.
-static inline void log_other_wait_memop(tid_t tid, objid_t objid, struct last_objinfo *lastobj) {
-    fprintf(logs.wait_memop, "%d %d %d\n", (int)objid, (int)(lastobj->version / 2),
-        lastobj->memop);
-}
-#endif // BINARY_LOG
 
 static inline void log_order(tid_t tid, objid_t objid, version_t current_version, struct last_objinfo *lastobj) {
     log_wait_version(tid, current_version);
@@ -400,7 +373,5 @@ void mem_finish_thr() {
             log_other_wait_memop(g_tid, i, &g_last[i]);
         }
     }
-#ifdef BINARY_LOG
     mark_log_end(g_tid);
-#endif
 }

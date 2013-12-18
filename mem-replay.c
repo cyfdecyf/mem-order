@@ -16,7 +16,6 @@ memop_t **memop_cnt;
 
 __thread struct wait_version wait_version;
 
-#ifdef BINARY_LOG
 __thread struct mapped_log wait_version_log;
 
 static inline void next_wait_version_log() {
@@ -32,19 +31,6 @@ static inline void next_wait_version_log() {
     log->buf = (char *)(wv + 1);
 }
 
-#else // BINARY_LOG
-__thread FILE *wait_version_log;
-
-static inline void next_wait_version_log() {
-    struct wait_version *ent = &wait_version;
-
-    if (fscanf(wait_version_log, "%d %d", &ent->version,
-            &ent->memop) != 2) {
-        // fprintf(stderr, "No more wait version log for thread %d\n", tid);
-    }
-}
-#endif // BINARY_LOG
-
 struct replay_wait_memop_log {
     struct replay_wait_memop *log;
     int n;
@@ -56,8 +42,6 @@ struct replay_wait_memop_log {
 };
 
 struct replay_wait_memop_log *wait_reader_log;
-
-#ifdef BINARY_LOG
 
 static void load_wait_reader_log() {
     struct mapped_log memop_log, index_log;
@@ -96,64 +80,6 @@ static void load_wait_reader_log() {
     }
     unmap_log(&index_log);
 }
-
-#else // BINARY_LOG
-
-enum { INIT_LOG_CNT = 1000 };
-
-static inline int read_wait_reader_log(FILE *log, struct replay_wait_memop *ent, objid_t *objid) {
-    if (fscanf(log, "%d %d %d %hhd", objid, &ent->version, &ent->memop,
-            &ent->tid) != 4) {
-        return 0;
-    }
-    return 1;
-}
-
-static void load_wait_reader_log() {
-    FILE *logfile = fopen("memop", "r");
-    if (! logfile) {
-        printf("Can't open memop\n");
-        exit(1);
-    }
-
-    wait_reader_log = calloc_check(g_nobj, sizeof(*wait_reader_log), "Can't allocate wait_memop");
-
-    int wait_memoplogsize = INIT_LOG_CNT * sizeof(wait_reader_log[0].log[0]);
-    for (int i = 0; i < g_nobj; i++) {
-        wait_reader_log[i].log = calloc_check(1, wait_memoplogsize, "Can't allocate wait_memop[i].log");
-        wait_reader_log[i].size = INIT_LOG_CNT;
-        wait_reader_log[i].n = 0;
-    }
-
-    objid_t objid;
-    struct replay_wait_memop ent;
-    while (fscanf(logfile, "%d %d %d %hhd", &objid, &ent.version, &ent.memop, &ent.tid) == 4) {
-        assert(objid < g_nobj);
-
-        int n = wait_reader_log[objid].n;
-        // Need to enlarge log array
-        if (n >= wait_reader_log[objid].size) {
-            unsigned int mem_size = wait_reader_log[objid].size * sizeof(wait_reader_log[0].log[0]) * 2;
-            struct replay_wait_memop *new_log = realloc(wait_reader_log[objid].log, mem_size);
-            if (! new_log) {
-                printf("Can't reallocate for wait_memop[%d].log\n", objid);
-                exit(1);
-            }
-            wait_reader_log[objid].log = new_log;
-            wait_reader_log[objid].size *= 2;
-        }
-
-        wait_reader_log[objid].log[n] = ent;
-        wait_reader_log[objid].n++;
-    }
-
-    for (int i = 0; i < g_nobj; ++i) {
-        // size is then used as index to the last log.
-        // n is then used as the index to the next unused log
-        wait_reader_log[i].size = wait_reader_log[i].n - 1;
-    }
-}
-#endif // BINARY_LOG
 
 struct replay_wait_memop *next_reader_memop(objid_t objid) {
     // There should be no concurrent access to an object's memop log.
@@ -204,14 +130,10 @@ void mem_init(tid_t nthr, int nobj) {
 void mem_init_thr(tid_t tid) {
     memop_cnt[tid] = &memop;
 
-#ifdef BINARY_LOG
     if (open_mapped_log("version", tid, &wait_version_log) != 0) {
         printf("T%d Error opening version log\n", (int)tid);
         exit(1);
     }
-#else
-    wait_version_log = open_log("version", tid);
-#endif
 
     next_wait_version_log();
 }

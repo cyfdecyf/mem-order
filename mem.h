@@ -10,16 +10,7 @@ extern "C" {
 
 #include <stdint.h>
 
-//#define BENCHMARK
 #define BATCH_LOG_TAKE
-
-#ifdef BENCHMARK
-#  define NITER 500000
-#  define BINARY_LOG
-#else
-#  define NITER 20000
-#  define BINARY_LOG
-#endif
 
 // Number of shared objects, must be initialized first.
 extern int g_nobj;
