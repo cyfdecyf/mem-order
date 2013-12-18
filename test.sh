@@ -24,11 +24,13 @@ function process_text_log() {
 function process_binary_log() {
     local maxid
     local i
+    local nobj
+    nobj=$1
     let maxid=$nthr-1
     for i in `seq 0 $maxid`; do
-        ./reorder-memop $i
+        ./reorder-memop $i $nobj
     done
-    ./merge-memop $nthr
+    ./merge-memop $nthr $nobj
 }
 
 function process_log() {
@@ -36,7 +38,7 @@ function process_log() {
     if [ $? == 0 ]; then
         process_text_log
     else
-        process_binary_log
+        process_binary_log $1
     fi
 }
 
@@ -55,7 +57,7 @@ for i in `seq 1 $ntimes`; do
 
     cecho "Processing log ..."
 
-    process_log
+    process_log 10
 
     cecho "Replay with $nthr threads"
     ./addcnt-play $nthr 2>debug-play > result-play

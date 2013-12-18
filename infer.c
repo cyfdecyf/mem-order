@@ -27,7 +27,7 @@ int main(int argc, char const *argv[]) {
         exit(1);
     }
 
-    int *last_read_version = malloc(NOBJS * sizeof(*last_read_version));
+    int *last_read_version = malloc(g_nobj * sizeof(*last_read_version));
 
     int read_memop, objid, version, last_read_memop;
     while (fscanf(rlog, "%d %d %d %d\n", &objid, &version, &read_memop,

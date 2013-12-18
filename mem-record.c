@@ -60,14 +60,15 @@ static inline void log_access(char acc, objid_t objid, version_t ver,
 
 #endif
 
-void mem_init(tid_t nthr) {
-    g_objinfo = calloc_check(NOBJS, sizeof(*g_objinfo), "g_objinfo");
+void mem_init(tid_t nthr, int nobjs) {
+    g_nobj = nobjs;
+    g_objinfo = calloc_check(g_nobj, sizeof(*g_objinfo), "g_objinfo");
 }
 
 void mem_init_thr(tid_t tid) {
-    g_last = calloc_check(NOBJS, sizeof(*g_last),
+    g_last = calloc_check(g_nobj, sizeof(*g_last),
             "prev_info[tid]");
-    for (int i = 0; i < NOBJS; i++) {
+    for (int i = 0; i < g_nobj; i++) {
         // First memop cnt is 0, initialize last memop to -1 so we can
         // distinguish whether there's a last read or not.
         g_last[i].memop = -1;
@@ -392,7 +393,7 @@ void mem_finish_thr() {
     // modified by other thread later. Making a final read can record the
     // last read info which otherwise would be lost. Note the final read don't
     // need to be waited by any thread as it's not executed by the program.
-    for (int i = 0; i < NOBJS; i++) {
+    for (int i = 0; i < g_nobj; i++) {
         /*DPRINTF("T%hhd last RD obj %d @%d\n", tid, i, last[i].version / 2);*/
         if (g_last[i].version != g_objinfo[i].version &&
                 g_last[i].memop >= 0) {

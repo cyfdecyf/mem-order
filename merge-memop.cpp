@@ -65,7 +65,7 @@ static void merge_memop(vector<struct mapped_log> &log, tid_t nthr) {
 
     // index buf contains index for an object's log and log entry count
     int *indexbuf = (int *)create_mapped_file(LOGDIR"memop-index",
-        NOBJS * sizeof(int) * 2);
+        g_nobj * sizeof(int) * 2);
     DPRINTF("created memop-index log\n");
 
     struct wait_memop wop;
@@ -137,7 +137,7 @@ static void merge_memop(vector<struct mapped_log> &log, tid_t nthr) {
     // Last object's log size
     *indexbuf++ = cnt - prev_cnt;
 
-    for (int i = prev_id + 1; i < NOBJS; ++i) {
+    for (int i = prev_id + 1; i < g_nobj; ++i) {
         *indexbuf++ = -1;
         *indexbuf++ = 0;
     }
@@ -146,14 +146,16 @@ static void merge_memop(vector<struct mapped_log> &log, tid_t nthr) {
 }
 
 int main(int argc, char const *argv[]) {
-    if (argc != 2) {
-        printf("Usage: merge-memop <nthr>\n");
+    if (argc != 3) {
+        printf("Usage: merge-memop <nthr> <nobj>\n");
         exit(1);
     }
 
     int nthr;
     istringstream nthrs(argv[1]);
     nthrs >> nthr;
+    istringstream nobjs(argv[2]);
+    nobjs >> g_nobj;
 
     vector<struct mapped_log> log;
     struct mapped_log l;

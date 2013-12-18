@@ -61,11 +61,11 @@ struct replay_wait_memop_log *wait_reader_log;
 
 static void load_wait_reader_log() {
     struct mapped_log memop_log, index_log;
-    wait_reader_log = calloc_check(NOBJS, sizeof(*wait_reader_log), "Can't allocate wait_memop");
+    wait_reader_log = calloc_check(g_nobj, sizeof(*wait_reader_log), "Can't allocate wait_memop");
 
     if (open_mapped_log_path(LOGDIR"memop", &memop_log) != 0) {
         DPRINTF("Can't open memop log\n");
-        for (int i = 0; i < NOBJS; i++) {
+        for (int i = 0; i < g_nobj; i++) {
             wait_reader_log[i].log = NULL;
             wait_reader_log[i].n = 0;
             wait_reader_log[i].size = -1;
@@ -80,7 +80,7 @@ static void load_wait_reader_log() {
     int *index = (int *)index_log.buf;
 
     struct replay_wait_memop *log_start = (struct replay_wait_memop *)memop_log.buf;
-    for (int i = 0; i < NOBJS; i++) {
+    for (int i = 0; i < g_nobj; i++) {
         wait_reader_log[i].n = 0;
         pthread_mutex_init(&wait_reader_log[i].mutex, NULL);
         if (*index == -1) {
@@ -116,10 +116,10 @@ static void load_wait_reader_log() {
         exit(1);
     }
 
-    wait_reader_log = calloc_check(NOBJS, sizeof(*wait_reader_log), "Can't allocate wait_memop");
+    wait_reader_log = calloc_check(g_nobj, sizeof(*wait_reader_log), "Can't allocate wait_memop");
 
     int wait_memoplogsize = INIT_LOG_CNT * sizeof(wait_reader_log[0].log[0]);
-    for (int i = 0; i < NOBJS; i++) {
+    for (int i = 0; i < g_nobj; i++) {
         wait_reader_log[i].log = calloc_check(1, wait_memoplogsize, "Can't allocate wait_memop[i].log");
         wait_reader_log[i].size = INIT_LOG_CNT;
         wait_reader_log[i].n = 0;
@@ -128,7 +128,7 @@ static void load_wait_reader_log() {
     objid_t objid;
     struct replay_wait_memop ent;
     while (fscanf(logfile, "%d %d %d %hhd", &objid, &ent.version, &ent.memop, &ent.tid) == 4) {
-        assert(objid < NOBJS);
+        assert(objid < g_nobj);
 
         int n = wait_reader_log[objid].n;
         // Need to enlarge log array
@@ -147,7 +147,7 @@ static void load_wait_reader_log() {
         wait_reader_log[objid].n++;
     }
 
-    for (int i = 0; i < NOBJS; ++i) {
+    for (int i = 0; i < g_nobj; ++i) {
         // size is then used as index to the last log.
         // n is then used as the index to the next unused log
         wait_reader_log[i].size = wait_reader_log[i].n - 1;
@@ -193,10 +193,11 @@ struct replay_wait_memop *next_reader_memop(objid_t objid) {
     return NULL;
 }
 
-void mem_init(tid_t nthr) {
+void mem_init(tid_t nthr, int nobj) {
+    g_nobj = nobj;
     load_wait_reader_log();
 
-    obj_version = calloc_check(NOBJS, sizeof(*obj_version), "Can't allocate obj_version");
+    obj_version = calloc_check(g_nobj, sizeof(*obj_version), "Can't allocate obj_version");
     memop_cnt = calloc_check(nthr, sizeof(*memop_cnt), "Can't allocate memop_cnt");
 }
 

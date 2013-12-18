@@ -8,6 +8,8 @@
 // objs are aligned to OBJ_SIZE
 int64_t *objs;
 
+#define NOBJS 10
+
 objid_t calc_objid_addcnt(void *addr) {
     return ((long)addr - (long)objs) >> 3;
 }
@@ -136,14 +138,13 @@ static thr_fn_t thr_fn[] = {
     access_thr_fn4,
 };
 
-
 int main(int argc, const char *argv[]) {
     if (argc != 2) {
         printf("Usage: %s <no of threads>\n", argv[0]);
         exit(1);
     }
 
-    if (posix_memalign((void **)&objs, OBJ_SIZE, NOBJS * OBJ_SIZE) != 0) {
+    if (posix_memalign((void **)&objs, sizeof(*objs), NOBJS * sizeof(*objs)) != 0) {
         printf("memory allocation for objs failed\n");
         exit(1);
     }
@@ -156,7 +157,7 @@ int main(int argc, const char *argv[]) {
     thr = calloc_check(nthr, sizeof(pthread_t), "pthread_t array thr");
 
     // Initialize memory order recorder/replayer
-    mem_init((tid_t)nthr);
+    mem_init((tid_t)nthr, NOBJS);
 
     for (long i = 0; i < nthr; i++) {
         if (pthread_create(&thr[i], NULL, thr_fn[i % sizeof(thr_fn)/sizeof(thr_fn[0])], (void *)i) != 0) {

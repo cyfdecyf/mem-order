@@ -36,13 +36,13 @@ static long load_wait_memop_log(wait_memop_all &all, tid_t tid) {
         }
         // printf("%d %d %d\n", objid, version, memop);
 
-        if (wmlog->objid >= NOBJS) {
-            printf("ERROR: #%ld objid %d > NOBJS %d\n", cnt, wmlog->objid, NOBJS);
+        if (wmlog->objid >= g_nobj) {
+            printf("ERROR: #%ld objid %d > g_nobj %d\n", cnt, wmlog->objid, g_nobj);
             assert(0);
         }
-        // if (wmlog->memop > NITER * NOBJS * 2) {
+        // if (wmlog->memop > NITER * g_nobj * 2) {
         //     printf("ERROR: #%ld memop %d > maximum possible %d\n", cnt, (int)wmlog->memop,
-        //         NITER * NOBJS * 2);
+        //         NITER * g_nobj * 2);
         //     assert(0);
         // }
         all[wmlog->objid].push_back(*wmlog);
@@ -73,16 +73,18 @@ static void write_out_memop_log(const wait_memop_all &all, long total, tid_t tid
 }
 
 int main(int argc, char const *argv[]) {
-    if (argc != 2) {
-        printf("Usage: reorder-memop <tid>\n");
+    if (argc != 3) {
+        printf("Usage: reorder-memop <tid> <nobj>\n");
         exit(1);
     }
 
     int tid;
-    istringstream tids(argv[1]);
-    tids >> tid;
+    istringstream nthrs(argv[1]);
+    nthrs >> tid;
+    istringstream nobjs(argv[2]);
+    nobjs >> g_nobj;
 
-    wait_memop_all all(NOBJS);
+    wait_memop_all all(g_nobj);
     long total = load_wait_memop_log(all, tid);
     if (total != 0)
         write_out_memop_log(all, total, tid);

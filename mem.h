@@ -17,13 +17,12 @@ extern "C" {
 #  define NITER 500000
 #  define BINARY_LOG
 #else
-#  define NITER 2000
+#  define NITER 20000
 #  define BINARY_LOG
 #endif
 
-// Shared object size configured to 8 to ease output
-#define OBJ_SIZE 8
-#define NOBJS 10
+// Number of shared objects, must be initialized first.
+extern int g_nobj;
 
 typedef long version_t;
 typedef int objid_t;
@@ -60,7 +59,7 @@ extern objid_t (*calc_objid)(void *addr);
 // Initialization function. Must called after nthr and thread
 // data storage is initialized.
 #ifndef DUMMY
-void mem_init(tid_t nthr);
+void mem_init(tid_t nthr, int nobj);
 void mem_init_thr(tid_t tid);
 void mem_finish_thr();
 
@@ -75,7 +74,7 @@ static inline void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     *addr = val;
 }
 
-static inline void mem_init(tid_t nthr) {}
+static inline void mem_init(tid_t nthr, int nobj) {}
 static inline void mem_init_thr(tid_t tid) {}
 static inline void mem_finish_thr() {}
 #endif

@@ -27,10 +27,10 @@ infer: infer.o
 	$(call cc-link-command)
 	cp $@ log/
 
-reorder-memop: reorder-memop.o log.o
+reorder-memop: reorder-memop.o mem.o log.o
 	$(call cxx-link-command)
 
-merge-memop: merge-memop.o log.o
+merge-memop: merge-memop.o mem.o log.o
 	$(call cxx-link-command)
 
 test: $(TARG)

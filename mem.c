@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 __thread tid_t g_tid;
+int g_nobj;
 
 objid_t (*calc_objid)(void *addr);
 
