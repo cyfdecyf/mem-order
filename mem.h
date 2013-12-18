@@ -55,7 +55,7 @@ struct replay_wait_memop {
 };
 
 // Test program should provide obj_id implementation.
-extern objid_t (*obj_id)(void *addr);
+extern objid_t (*calc_objid)(void *addr);
 
 // Initialization function. Must called after nthr and thread
 // data storage is initialized.
@@ -82,7 +82,7 @@ static inline void mem_finish_thr() {}
 
 // gcc on linux supports __thread. It's much pleasant to use than using
 // global array and pthread_getspecific etc.
-extern __thread tid_t tid;
+extern __thread tid_t g_tid;
 
 // Utility function
 

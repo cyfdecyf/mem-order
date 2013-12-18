@@ -227,7 +227,7 @@ static void wait_object_version(int objid, const char op) {
 
         if (obj_version[objid] != wait_version.version) {
             fprintf(stderr, "T%d obj_version[%d] = %d, wait_version = %d\n",
-                (int)tid, (int)objid, (int)obj_version[objid], (int)wait_version.version);
+                (int)g_tid, (int)objid, (int)obj_version[objid], (int)wait_version.version);
         }
         assert(obj_version[objid] == wait_version.version);
         next_wait_version_log();
@@ -249,7 +249,7 @@ static void wait_reader(int objid) {
 
 uint32_t mem_read(tid_t tid, uint32_t *addr) {
     int val;
-    objid_t objid = obj_id(addr);
+    objid_t objid = calc_objid(addr);
 
     wait_object_version(objid, 'R');
 
@@ -260,7 +260,7 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
 }
 
 void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
-    int objid = obj_id(addr);
+    int objid = calc_objid(addr);
 
     wait_object_version(objid, 'W');
     wait_reader(objid);

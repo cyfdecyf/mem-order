@@ -8,7 +8,7 @@
 // objs are aligned to OBJ_SIZE
 int64_t *objs;
 
-objid_t obj_id_addcnt(void *addr) {
+objid_t calc_objid_addcnt(void *addr) {
     return ((long)addr - (long)objs) >> 3;
 }
 
@@ -42,10 +42,10 @@ static void sync_thread(volatile int *flag) {
         asm volatile ("pause");
 }
 
-static inline void thr_start(void *dummyid) {
+static inline void thr_start(void *_tid) {
     // Must set tid before using
-    tid = (tid_t)(long)dummyid;
-    mem_init_thr(tid);
+    g_tid = (tid_t)(long)_tid;
+    mem_init_thr(g_tid);
     sync_thread(&start_flag);
 }
 
@@ -61,8 +61,8 @@ static void *access_thr_fn1(void *dummyid) {
         for (int j = 0; j < NOBJS; j++) {
             // First read, then write. From object 0 to NOBJS-1
             uint32_t *addr = (uint32_t *)&objs[j];
-            uint32_t val = mem_read(tid, addr);
-            mem_write(tid, addr, val + 1);
+            uint32_t val = mem_read(g_tid, addr);
+            mem_write(g_tid, addr, val + 1);
         }
     }
 
@@ -77,8 +77,8 @@ static void *access_thr_fn2(void *dummyid) {
         for (int j = NOBJS - 1; j > -1; j--) {
             // First read, then write. From object NOBJS-1 to 0
             uint32_t *addr = (uint32_t *)&objs[j];
-            uint32_t val = mem_read(tid, addr);
-            mem_write(tid, addr, val + 1);
+            uint32_t val = mem_read(g_tid, addr);
+            mem_write(g_tid, addr, val + 1);
         }
     }
 
@@ -95,11 +95,11 @@ static void *access_thr_fn3(void *dummyid) {
             uint32_t *addrj = (uint32_t *)&objs[j];
             uint32_t *addrj1 = (uint32_t *)&objs[j+1];
 
-            uint32_t val = mem_read(tid, addrj);
-            mem_write(tid, addrj1, val + 1);
+            uint32_t val = mem_read(g_tid, addrj);
+            mem_write(g_tid, addrj1, val + 1);
 
-            val = mem_read(tid, addrj1);
-            mem_write(tid, addrj, val + 2);
+            val = mem_read(g_tid, addrj1);
+            mem_write(g_tid, addrj, val + 2);
         }
     }
 
@@ -116,11 +116,11 @@ static void *access_thr_fn4(void *dummyid) {
             uint32_t *addrj = (uint32_t *)&objs[j];
             uint32_t *addrj1 = (uint32_t *)&objs[j-1];
 
-            uint32_t val = mem_read(tid, addrj);
-            mem_write(tid, addrj1, val + 1);
+            uint32_t val = mem_read(g_tid, addrj);
+            mem_write(g_tid, addrj1, val + 1);
 
-            val = mem_read(tid, addrj1);
-            mem_write(tid, addrj, val + 2);
+            val = mem_read(g_tid, addrj1);
+            mem_write(g_tid, addrj, val + 2);
         }
     }
 
@@ -147,7 +147,7 @@ int main(int argc, const char *argv[]) {
         printf("memory allocation for objs failed\n");
         exit(1);
     }
-    obj_id = obj_id_addcnt;
+    calc_objid = calc_objid_addcnt;
 
     signal(SIGSEGV, handler);
 

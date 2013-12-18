@@ -3,6 +3,7 @@
 #include "spinlock.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 // #define DEBUG
 #include "debug.h"
@@ -172,7 +173,7 @@ static inline void take_log(struct memacc *acc) {
     struct last_objinfo *last = &g_last[objid];
 
     if (last->version != acc->version) {
-        log_order(tid, objid, acc->version, last);
+        log_order(g_tid, objid, acc->version, last);
         last->version = acc->version;
     }
     if (is_write) {
@@ -187,7 +188,7 @@ static inline void take_log(struct memacc *acc) {
 uint32_t mem_read(tid_t tid, uint32_t *addr) {
     version_t version;
     uint32_t val;
-    objid_t objid = obj_id(addr);
+    objid_t objid = calc_objid(addr);
     struct objinfo *info = &g_objinfo[objid];
 
     // Protect atomic access to version and memory.
@@ -219,7 +220,7 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
 
 void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     version_t version;
-    objid_t objid = obj_id(addr);
+    objid_t objid = calc_objid(addr);
     struct objinfo *info = &g_objinfo[objid];
 
     // Protect atomic access to version and memory.
@@ -252,7 +253,7 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
 uint32_t mem_read(tid_t tid, uint32_t *addr) {
     version_t version;
     uint32_t val;
-    objid_t objid = obj_id(addr);
+    objid_t objid = calc_objid(addr);
     struct objinfo *info = &g_objinfo[objid];
 
     // Avoid reording version reading before version writing the previous
@@ -345,7 +346,7 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
 
 void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     version_t version;
-    objid_t objid = obj_id(addr);
+    objid_t objid = calc_objid(addr);
     struct objinfo *info = &g_objinfo[objid];
 
     spin_lock(&info->write_lock);
@@ -395,10 +396,10 @@ void mem_finish_thr() {
         /*DPRINTF("T%hhd last RD obj %d @%d\n", tid, i, last[i].version / 2);*/
         if (g_last[i].version != g_objinfo[i].version &&
                 g_last[i].memop >= 0) {
-            log_other_wait_memop(tid, i, &g_last[i]);
+            log_other_wait_memop(g_tid, i, &g_last[i]);
         }
     }
 #ifdef BINARY_LOG
-    mark_log_end(tid);
+    mark_log_end(g_tid);
 #endif
 }

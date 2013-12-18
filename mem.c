@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-__thread tid_t tid;
+__thread tid_t g_tid;
 
-objid_t (*obj_id)(void *addr);
+objid_t (*calc_objid)(void *addr);
 
 void *calloc_check(long nmemb, long size, const char *err_msg) {
     void *p = calloc(nmemb, size);
