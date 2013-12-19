@@ -5,7 +5,7 @@ CXXFLAGS = -g -O2 -Wall
 
 LDFLAGS = -lpthread
 MEMOBJS = mem.o log.o
-TARG = addcnt-rec addcnt-play reorder-memop merge-memop
+TARG = addcnt-rec addcnt-play racey-rec racey-play reorder-memop merge-memop
 TEST = mem-test
 
 all: $(TARG)
@@ -18,6 +18,12 @@ addcnt-rec: $(MEMOBJS) mem-record.o addcnt.o
 	$(call cc-link-command)
 
 addcnt-play: $(MEMOBJS) mem-replay.o addcnt.o
+	$(call cc-link-command)
+
+racey-rec: $(MEMOBJS) mem-record.o racey.o
+	$(call cc-link-command)
+
+racey-play: $(MEMOBJS) mem-replay.o racey.o
 	$(call cc-link-command)
 
 mem-test: mem-test.o mem.o

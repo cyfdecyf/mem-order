@@ -1,8 +1,18 @@
 #!/bin/bash
 
-if [[ $# > 2 || $# == 0 ]]; then
-    echo "Usage: run.sh <nthr> [ntimes]"
+if [[ $# != 3 || $# == 0 ]]; then
+    echo "Usage: run.sh <cmd> <nthr> <ntimes>"
     exit 1
+fi
+
+cmd=$1
+nthr=$2
+ntimes=$3
+
+if [ $cmd = "addcnt" ]; then
+    nobj=10
+elif [ $cmd = "racey" ]; then
+    nobj=64
 fi
 
 COLOR='\e[1;32m'
@@ -14,8 +24,6 @@ function cecho() {
 function process_binary_log() {
     local maxid
     local i
-    local nobj
-    nobj=$1
     let maxid=$nthr-1
     for i in `seq 0 $maxid`; do
         ./reorder-memop $i $nobj
@@ -32,25 +40,17 @@ function process_log() {
     fi
 }
 
-nthr=$1
-if [ $# == 2 ]; then
-    ntimes=$2
-else
-    ntimes=1
-fi
-
 for i in `seq 1 $ntimes`; do
     rm -f replay-log/{memop*,version*,sorted-*}
-    cecho "$i iteration"
     cecho "Record with $nthr threads"
-    ./addcnt-rec $nthr 2>debug-record > result-record
+    ./$cmd-rec $nthr 2>debug-record > result-record
 
     cecho "Processing log ..."
 
-    process_log 10
+    process_log $nobj
 
     cecho "Replay with $nthr threads"
-    ./addcnt-play $nthr 2>debug-play > result-play
+    ./$cmd-play $nthr 2>debug-play > result-play
 
     diff result-record result-play
 
@@ -63,3 +63,4 @@ for i in `seq 1 $ntimes`; do
         exit 1
     fi
 done
+

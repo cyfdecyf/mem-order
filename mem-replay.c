@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <pthread.h>
 
-// #define DEBUG
+/*#define DEBUG*/
 #include "debug.h"
 
 version_t *obj_version;
@@ -98,8 +98,8 @@ struct replay_wait_memop *next_reader_memop(objid_t objid) {
     struct replay_wait_memop *log = wait_reader_log[objid].log;
     version_t version = obj_version[objid];
     // Search if there's any read get the current version.
-    DPRINTF("T%hhd W%d B%d wait reader search for X @%d idx[%d] = %d\n",
-            tid, memop, objid, version, objid, wait_reader_log[objid][n]);
+    DPRINTF("T%hhd W%ld B%d wait reader search for X @%ld idx[%d] = %d\n",
+            g_tid, memop, objid, version, objid, wait_reader_log[objid].n);
     // XXX As memop log index is shared among cores, can't skip log with the
     // same tid to the checking core itself because other cores need this log
     for (i = wait_reader_log[objid].n;
@@ -113,8 +113,8 @@ struct replay_wait_memop *next_reader_memop(objid_t objid) {
         return &log[i];
     }
     wait_reader_log[objid].n = i;
-    DPRINTF("T%d W%d B%d wait reader No X @%d found idx[%d] = %d\n",
-        tid, memop, objid, version, objid, i);
+    DPRINTF("T%d W%ld B%d wait reader No X @%ld found idx[%d] = %d\n",
+        g_tid, memop, objid, version, objid, i);
     pthread_mutex_unlock(&wait_reader_log[objid].mutex);
     return NULL;
 }
@@ -141,12 +141,12 @@ void mem_init_thr(tid_t tid) {
 static void wait_object_version(int objid, const char op) {
     if (memop == wait_version.memop) {
         // Wait version reaches the recorded value
-        DPRINTF("T%hhd %c%d B%d wait version @%d->%d\n", tid, op, memop,
+        DPRINTF("T%hhd %c%ld B%d wait version @%ld->%ld\n", g_tid, op, memop,
             objid, obj_version[objid], wait_version.version);
         while (obj_version[objid] < wait_version.version) {
             cpu_relax();
         }
-        DPRINTF("T%d %c%d B%d wait version done\n", tid, op, memop, objid);
+        DPRINTF("T%d %c%ld B%d wait version done\n", g_tid, op, memop, objid);
 
         if (obj_version[objid] != wait_version.version) {
             fprintf(stderr, "T%d obj_version[%d] = %d, wait_version = %d\n",
@@ -161,12 +161,12 @@ static void wait_reader(int objid) {
     // Wait memory accesses that happen at this version.
     struct replay_wait_memop *log;
     while ((log = next_reader_memop(objid)) != NULL) {
-        DPRINTF("T%d W%d B%d wait reader T%d X%d\n", tid, memop, objid,
+        DPRINTF("T%d W%ld B%d wait reader T%d X%ld\n", g_tid, memop, objid,
             log->tid, log->memop);
         while (*memop_cnt[log->tid] <= log->memop) {
             cpu_relax();
         }
-        DPRINTF("T%d W%d B%d wait reader done\n", tid, memop, objid);
+        DPRINTF("T%d W%ld B%d wait reader done\n", g_tid, memop, objid);
     }
 }
 

@@ -36,8 +36,8 @@ static long load_wait_memop_log(wait_memop_all &all, tid_t tid) {
         }
         // printf("%d %d %d\n", objid, version, memop);
 
-        if (wmlog->objid >= g_nobj) {
-            printf("ERROR: #%ld objid %d > g_nobj %d\n", cnt, wmlog->objid, g_nobj);
+        if (wmlog->objid < 0 || wmlog->objid >= g_nobj) {
+            printf("ERROR: #%ld objid %d, g_nobj %d\n", cnt, wmlog->objid, g_nobj);
             assert(0);
         }
         // if (wmlog->memop > NITER * g_nobj * 2) {

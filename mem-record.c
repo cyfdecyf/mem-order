@@ -53,8 +53,8 @@ static inline void log_access(char acc, objid_t objid, version_t ver,
 
 #endif
 
-void mem_init(tid_t nthr, int nobjs) {
-    g_nobj = nobjs;
+void mem_init(tid_t nthr, int nobj) {
+    g_nobj = nobj;
     g_objinfo = calloc_check(g_nobj, sizeof(*g_objinfo), "g_objinfo");
 }
 

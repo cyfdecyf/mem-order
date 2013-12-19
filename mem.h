@@ -4,6 +4,7 @@
 #ifdef __cplusplus
 extern "C" {
 #else
+// In order for racey to compile.
 // Only gcc requires this, g++ enables _GNU_SOURCE by default.
 #define _GNU_SOURCE
 #endif
