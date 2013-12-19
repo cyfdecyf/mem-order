@@ -5,18 +5,18 @@
 #include <execinfo.h>
 #include <signal.h>
 
-// objs are aligned to OBJ_SIZE
-int64_t *objs;
+// g_obj are aligned to OBJ_SIZE
+int64_t *g_obj;
 
 #define NOBJS 10
 
 objid_t calc_objid_addcnt(void *addr) {
-    return ((long)addr - (long)objs) >> 3;
+    return ((long)addr - (long)g_obj) >> 3;
 }
 
-void print_objs(void) {
-    for (int i = 0; i < NOBJS; i++) {
-        printf("%lx\n", (long)objs[i]);
+void print_g_obj(void) {
+    for (int i = 0; i < g_nobj; i++) {
+        printf("%lx\n", (long)g_obj[i]);
     }
 }
 
@@ -62,9 +62,9 @@ static void *access_thr_fn1(void *dummyid) {
     thr_start(dummyid);
 
     for (int i = 0; i < NITER; i++) {
-        for (int j = 0; j < NOBJS; j++) {
-            // First read, then write. From object 0 to NOBJS-1
-            uint32_t *addr = (uint32_t *)&objs[j];
+        for (int j = 0; j < g_nobj; j++) {
+            // First read, then write. From object 0 to g_nobj-1
+            uint32_t *addr = (uint32_t *)&g_obj[j];
             uint32_t val = mem_read(g_tid, addr);
             mem_write(g_tid, addr, val + 1);
         }
@@ -78,9 +78,9 @@ static void *access_thr_fn2(void *dummyid) {
     thr_start(dummyid);
 
     for (int i = 0; i < NITER; i++) {
-        for (int j = NOBJS - 1; j > -1; j--) {
-            // First read, then write. From object NOBJS-1 to 0
-            uint32_t *addr = (uint32_t *)&objs[j];
+        for (int j = g_nobj - 1; j > -1; j--) {
+            // First read, then write. From object g_nobj-1 to 0
+            uint32_t *addr = (uint32_t *)&g_obj[j];
             uint32_t val = mem_read(g_tid, addr);
             mem_write(g_tid, addr, val + 1);
         }
@@ -94,10 +94,10 @@ static void *access_thr_fn3(void *dummyid) {
     thr_start(dummyid);
 
     for (int i = 0; i < NITER; i++) {
-        for (int j = 0; j < NOBJS - 1; j += 2) {
+        for (int j = 0; j < g_nobj - 1; j += 2) {
             // First read memobj j, the write to memobj j+1, then write to memobj j
-            uint32_t *addrj = (uint32_t *)&objs[j];
-            uint32_t *addrj1 = (uint32_t *)&objs[j+1];
+            uint32_t *addrj = (uint32_t *)&g_obj[j];
+            uint32_t *addrj1 = (uint32_t *)&g_obj[j+1];
 
             uint32_t val = mem_read(g_tid, addrj);
             mem_write(g_tid, addrj1, val + 1);
@@ -115,10 +115,10 @@ static void *access_thr_fn4(void *dummyid) {
     thr_start(dummyid);
 
     for (int i = 0; i < NITER; i++) {
-        for (int j = NOBJS - 1; j > 0; j -= 2) {
+        for (int j = g_nobj - 1; j > 0; j -= 2) {
             // First read memobj j, the write to memobj j-1, then write to memobj j
-            uint32_t *addrj = (uint32_t *)&objs[j];
-            uint32_t *addrj1 = (uint32_t *)&objs[j-1];
+            uint32_t *addrj = (uint32_t *)&g_obj[j];
+            uint32_t *addrj1 = (uint32_t *)&g_obj[j-1];
 
             uint32_t val = mem_read(g_tid, addrj);
             mem_write(g_tid, addrj1, val + 1);
@@ -146,7 +146,7 @@ int main(int argc, const char *argv[]) {
         exit(1);
     }
 
-    if (posix_memalign((void **)&objs, sizeof(*objs), NOBJS * sizeof(*objs)) != 0) {
+    if (posix_memalign((void **)&g_obj, sizeof(*g_obj), NOBJS * sizeof(*g_obj)) != 0) {
         printf("memory allocation for objs failed\n");
         exit(1);
     }
@@ -172,6 +172,6 @@ int main(int argc, const char *argv[]) {
         pthread_join(thr[i], NULL);
     }
 
-    print_objs();
+    print_g_obj();
     return 0;
 }
