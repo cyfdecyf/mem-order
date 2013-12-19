@@ -189,7 +189,7 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     wait_reader(objid);
 
     *addr = val;
-    obj_version[objid] += 1;
+    obj_version[objid] += 2;
     memop++;
 }
 

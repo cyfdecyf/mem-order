@@ -82,7 +82,7 @@ static inline void log_wait_version(tid_t tid, version_t current_version) {
     struct wait_version *l = next_version_log(&logs.wait_version);
 
     l->memop = memop;
-    l->version = current_version / 2;
+    l->version = current_version;
 }
 
 static inline struct wait_memop *next_memop_log(struct mapped_log *log) {
@@ -94,7 +94,7 @@ static inline void log_other_wait_memop(tid_t tid, objid_t objid,
     struct wait_memop *l = next_memop_log(&logs.wait_memop);
 
     l->objid = objid;
-    l->version = lastobj->version / 2;
+    l->version = lastobj->version;
     l->memop = lastobj->memop;
 }
 
@@ -305,10 +305,10 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
 
     /*
      *DPRINTF("T%hhd R%d obj %d @%d   \t val %d\n", tid, memop, objid,
-     *    version / 2, val);
+     *    version, val);
      */
 #ifdef DEBUG
-    log_access('R', objid, version / 2, memop, val);
+    log_access('R', objid, version, memop, val);
 #endif
 
     // Not every read will take logs. To get precise dependency, maintain the
@@ -347,10 +347,10 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
 
     /*
      *DPRINTF("T%hhd W%d obj %d @%d->%d\t val %d\n", tid, memop,
-     *    objid, version / 2, version / 2 + 1, val);
+     *    objid, version, version + 1, val);
      */
 #ifdef DEBUG
-    log_access('W', objid, version / 2, memop, val);
+    log_access('W', objid, version, memop, val);
 #endif
 
     lastobj->memop = ~memop; // flip to mark last memop as write
@@ -367,7 +367,7 @@ void mem_finish_thr() {
     // last read info which otherwise would be lost. Note the final read don't
     // need to be waited by any thread as it's not executed by the program.
     for (int i = 0; i < g_nobj; i++) {
-        /*DPRINTF("T%hhd last RD obj %d @%d\n", tid, i, last[i].version / 2);*/
+        /*DPRINTF("T%hhd last RD obj %d @%d\n", tid, i, last[i].version);*/
         if (g_last[i].version != g_objinfo[i].version &&
                 g_last[i].memop >= 0) {
             log_other_wait_memop(g_tid, i, &g_last[i]);
