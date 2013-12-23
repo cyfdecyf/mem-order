@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#define DEBUG
+/*#define DEBUG*/
 #include "debug.h"
 
 struct objinfo {
@@ -354,12 +354,10 @@ void mem_finish_thr() {
     // wait_memop logs.
     // This is necessary for the last read to an object that's
     // modified by other thread later. Making a final read can record the
-    // last read info which otherwise would be lost. Note the final read don't
-    // need to be waited by any thread as it's not executed by the program.
+    // last read info which otherwise would be lost.
     for (int i = 0; i < g_nobj; i++) {
         /*DPRINTF("T%hhd last RD obj %d @%d\n", tid, i, last[i].version);*/
-        if (g_last[i].version != g_objinfo[i].version &&
-                g_last[i].memop >= 0) {
+        if (g_last[i].memop >= 0) {
             log_other_wait_memop(g_tid, i, &g_last[i]);
         }
     }

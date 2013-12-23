@@ -35,6 +35,7 @@
 #include <stdint.h>
 #include <assert.h>
 
+#undef DEBUG
 /*#define DEBUG*/
 
 #ifdef DEBUG
@@ -104,7 +105,7 @@ uint32_t g_sig[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
 union {
   /* 64 bytes cache line */
   char    b[64];
-  int32_t value;
+  uint32_t value;
 } g_m[MAX_ELEM];
 
 objid_t calc_objid_racey(void *addr) {
@@ -141,10 +142,10 @@ void* ThreadBody(void* _tid)
   // use processor_bind(), for example on solaris.
   bind_core((long)g_tid);
 
-  DPRINTF("T%d seizing cpu &i = %p\n", g_tid, &i);
+  /*DPRINTF("T%d seizing cpu &i = %p\n", g_tid, &i);*/
   /* seize the cpu, roughly 0.5-1 second on ironsides */
   // for(i=0; i<0x07ffffff; i++) {};
-  DPRINTF("T%d cpu seized\n", g_tid);
+  /*DPRINTF("T%d cpu seized\n", g_tid);*/
 
   /* simple barrier, pass only once */
   int v = sync_thread();
@@ -172,11 +173,11 @@ void* ThreadBody(void* _tid)
     mem_write(g_tid, (uint32_t *)&g_m[index2].value, num);
     g_sig[g_tid] = num;
     /* Optionally, yield to other processors (Solaris use sched_yield()) */
-    /* pthread_yield(); */
+    /*pthread_yield();*/
   }
+  mem_finish_thr();
   DPRINTF("T%d done\n", g_tid);
 
-  mem_finish_thr();
   return NULL;
 }
 

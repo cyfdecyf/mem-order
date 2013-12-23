@@ -7,7 +7,7 @@
 #include <assert.h>
 #include <pthread.h>
 
-#define DEBUG
+/*#define DEBUG*/
 #include "debug.h"
 
 version_t *obj_version;
