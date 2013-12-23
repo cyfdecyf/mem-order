@@ -11,7 +11,8 @@ extern "C" {
 
 #include <stdint.h>
 
-#define BATCH_LOG_TAKE
+//#define BATCH_LOG_TAKE
+#define DEBUG_ACCESS
 
 // Number of shared objects, must be initialized first.
 extern int g_nobj;
@@ -33,6 +34,17 @@ struct wait_version {
     memop_t memop;
     version_t version;
 };
+
+#ifdef DEBUG_ACCESS
+// Record memory access information.
+struct mem_acc {
+    char acc;
+    objid_t objid;
+    uint32_t val;
+    version_t version;
+    memop_t memop; // necessary?
+};
+#endif
 
 /*extern int struct wait_memop_wrong_size[sizeof(struct wait_memop) ==
     (sizeof(objid_t) + sizeof(version_t) + sizeof(memop_t)) ? 1 : -1];*/

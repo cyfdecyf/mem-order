@@ -85,7 +85,7 @@ static void merge_memop(vector<struct mapped_log> &log, tid_t nthr) {
 
 #ifdef DEBUG
         static version_t prev_version = -1;
-        DPRINTF("T%d %d %d %d\n", qe.tid, qe.wop.objid, qe.wop.version, qe.wop.memop);
+        DPRINTF("T%d %d %ld %ld\n", qe.tid, qe.wop.objid, qe.wop.version, qe.wop.memop);
         assert(qe.wop.objid >= prev_id);
         if (qe.wop.objid != prev_id) {
             prev_version = -1;

@@ -1,12 +1,13 @@
 #include "mem.h"
 #include "log.h"
 #include "spinlock.h" // Just for barrier and cpu_relax
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <pthread.h>
 
-/*#define DEBUG*/
+#define DEBUG
 #include "debug.h"
 
 version_t *obj_version;
@@ -119,6 +120,39 @@ struct replay_wait_memop *next_reader_memop(objid_t objid) {
     return NULL;
 }
 
+#ifdef DEBUG_ACCESS
+__thread struct mapped_log debug_access_log;
+
+#define MEMACC_ERR(fmt, ...) \
+    do { \
+        printf("T%d: %c%ld " fmt "\n", g_tid, acc, memop, ##__VA_ARGS__); \
+        err = true; \
+    } while(0)
+
+static inline void check_access(char acc, objid_t objid, version_t ver, uint32_t val) {
+    bool err = false;
+    struct mem_acc *ent = (struct mem_acc *)read_log_entry(&debug_access_log, sizeof(*ent));
+    if (ent->acc != acc) {
+        MEMACC_ERR("memacc type error");
+    }
+    if (ent->objid != objid) {
+        MEMACC_ERR("memacc objid error rec: %d replay: %d", ent->objid, objid);
+    }
+    if (ent->val != val) {
+        MEMACC_ERR("memacc val error rec: %d replay: %d", ent->val, val);
+    }
+    if (ent->version != ver) {
+        MEMACC_ERR("memacc ver error rec: %ld replay: %ld", ent->version, ver);
+    }
+    if (ent->memop != memop) {
+        MEMACC_ERR("memacc memop error rec: %ld replay: %ld", ent->memop, memop);
+    }
+    if (err) {
+        exit(1);
+    }
+}
+#endif
+
 void mem_init(tid_t nthr, int nobj) {
     g_nobj = nobj;
     load_wait_reader_log();
@@ -134,6 +168,13 @@ void mem_init_thr(tid_t tid) {
         printf("T%d Error opening version log\n", (int)tid);
         exit(1);
     }
+
+#ifdef DEBUG_ACCESS
+    if (open_mapped_log("debug-access", tid, &debug_access_log) != 0) {
+        printf("T%d Error opening debug-access log\n", (int)tid);
+        exit(1);
+    }
+#endif
 
     next_wait_version_log();
 }
@@ -178,8 +219,12 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
 
     DPRINTF("T%d R%ld B%d @%ld\n", g_tid, memop, objid, obj_version[objid]);
     val = *addr;
-    memop++;
 
+#ifdef DEBUG_ACCESS
+    check_access('R', objid, obj_version[objid], val);
+#endif
+
+    memop++;
     return val;
 }
 
@@ -190,6 +235,9 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     wait_reader(objid);
 
     DPRINTF("T%d W%ld B%d @%ld\n", g_tid, memop, objid, obj_version[objid]);
+#ifdef DEBUG_ACCESS
+    check_access('W', objid, obj_version[objid], val);
+#endif
     *addr = val;
     obj_version[objid] += 2;
     memop++;

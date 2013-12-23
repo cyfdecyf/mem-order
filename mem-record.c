@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-// #define DEBUG
+#define DEBUG
 #include "debug.h"
 
 struct objinfo {
@@ -30,27 +30,17 @@ __thread struct {
     struct mapped_log wait_memop;
 } logs;
 
-#ifdef DEBUG
+#ifdef DEBUG_ACCESS
 __thread struct mapped_log debug_access_log;
 
-typedef struct {
-    char acc;
-    memop_t memop;
-    objid_t objid;
-    version_t version;
-    uint32_t val;
-} AccessEntry;
-
-static inline void log_access(char acc, objid_t objid, version_t ver,
-        memop_t memop, uint32_t val) {
-    AccessEntry *ent = (AccessEntry *)next_log_entry(&debug_access_log, sizeof(*ent));
+static inline void log_access(char acc, objid_t objid, version_t ver, uint32_t val) {
+    struct mem_acc *ent = (struct mem_acc *)next_log_entry(&debug_access_log, sizeof(*ent));
     ent->acc = acc;
-    ent->memop = memop;
     ent->objid = objid;
-    ent->version = ver;
     ent->val = val;
+    ent->version = ver;
+    ent->memop = memop;
 }
-
 #endif
 
 void mem_init(tid_t nthr, int nobj) {
@@ -69,7 +59,7 @@ void mem_init_thr(tid_t tid) {
     new_mapped_log("version", tid, &logs.wait_version);
     new_mapped_log("memop", tid, &logs.wait_memop);
 
-#ifdef DEBUG
+#ifdef DEBUG_ACCESS
     new_mapped_log("debug-access", tid, &debug_access_log);
 #endif
 }
@@ -222,7 +212,7 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     }
 }
 
-#else
+#else // BATCH_LOG_TAKE
 
 uint32_t mem_read(tid_t tid, uint32_t *addr) {
     version_t version;
@@ -307,8 +297,8 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
      *DPRINTF("T%hhd R%d obj %d @%d   \t val %d\n", tid, memop, objid,
      *    version, val);
      */
-#ifdef DEBUG
-    log_access('R', objid, version, memop, val);
+#ifdef DEBUG_ACCESS
+    log_access('R', objid, version, val);
 #endif
 
     // Not every read will take logs. To get precise dependency, maintain the
@@ -349,8 +339,8 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
      *DPRINTF("T%hhd W%d obj %d @%d->%d\t val %d\n", tid, memop,
      *    objid, version, version + 1, val);
      */
-#ifdef DEBUG
-    log_access('W', objid, version, memop, val);
+#ifdef DEBUG_ACCESS
+    log_access('W', objid, version, val);
 #endif
 
     lastobj->memop = ~memop; // flip to mark last memop as write
@@ -374,4 +364,5 @@ void mem_finish_thr() {
         }
     }
     mark_log_end(g_tid);
+    fprintf(stderr, "T%d memop %ld\n", g_tid, memop);
 }

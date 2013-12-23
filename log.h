@@ -41,6 +41,16 @@ static inline char *next_log_entry(struct mapped_log *log, int entry_size) {
     return start;
 }
 
+static inline char *read_log_entry(struct mapped_log *log, int entry_size) {
+    if ((log->buf + entry_size) > log->end) {
+        printf("no more log entry");
+        return NULL;
+    }
+    char *start = log->buf;
+    log->buf += entry_size;
+    return start;
+}
+
 #define LOGDIR "replay-log/"
 
 #define MAX_PATH_LEN 256
