@@ -78,7 +78,7 @@ static inline struct wait_version *next_version_log(struct mapped_log *log) {
     return (struct wait_version *)next_log_entry(log, sizeof(struct wait_version));
 }
 
-static inline void log_wait_version(tid_t tid, version_t current_version) {
+static inline void log_wait_version(version_t current_version) {
     struct wait_version *l = next_version_log(&logs.wait_version);
 
     l->memop = memop;
@@ -112,7 +112,7 @@ static inline void mark_log_end(tid_t tid) {
 }
 
 static inline void log_order(tid_t tid, objid_t objid, version_t current_version, struct last_objinfo *lastobj) {
-    log_wait_version(tid, current_version);
+    log_wait_version(current_version);
     if (lastobj->memop >= 0)
         log_other_wait_memop(tid, objid, lastobj);
 }

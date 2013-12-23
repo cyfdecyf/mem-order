@@ -176,6 +176,7 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
 
     wait_object_version(objid, 'R');
 
+    DPRINTF("T%d R%ld B%d @%ld\n", g_tid, memop, objid, obj_version[objid]);
     val = *addr;
     memop++;
 
@@ -188,6 +189,7 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     wait_object_version(objid, 'W');
     wait_reader(objid);
 
+    DPRINTF("T%d W%ld B%d @%ld\n", g_tid, memop, objid, obj_version[objid]);
     *addr = val;
     obj_version[objid] += 2;
     memop++;
