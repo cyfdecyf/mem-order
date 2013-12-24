@@ -144,9 +144,6 @@ static inline void check_access(char acc, objid_t objid, version_t ver, uint32_t
     if (ent->version != ver) {
         MEMACC_ERR("memacc ver error rec: %ld replay: %ld", ent->version, ver);
     }
-    if (ent->memop != memop) {
-        MEMACC_ERR("memacc memop error rec: %ld replay: %ld", ent->memop, memop);
-    }
     if (err) {
         exit(1);
     }

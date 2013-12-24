@@ -91,6 +91,9 @@ extern __thread tid_t g_tid;
 
 void *calloc_check(long nmemb, long size, const char *err_msg);
 
+#define likely(x) __builtin_expect(!!(x), 0)
+#define unlikely(x) __builtin_expect(!!(x), 0)
+
 #define __constructor__ __attribute__((constructor))
 
 #ifdef __cplusplus

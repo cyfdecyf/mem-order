@@ -5,7 +5,15 @@ CXXFLAGS = -g -O2 -Wall
 
 LDFLAGS = -lpthread
 MEMOBJS = mem.o log.o
-TARG = addcnt-rec addcnt-play racey-rec racey-play reorder-memop merge-memop
+RECORD_OBJS = $(MEMOBJS) mem-record.o
+TARG = reorder-memop merge-memop \
+	   addcnt-seqlock-rec \
+	   addcnt-seqbatch-rec \
+	   addcnt-play \
+	   racey-seqlock-rec \
+	   racey-seqbatch-rec \
+	   racey-play
+	   
 TEST = mem-test
 
 all: $(TARG)
@@ -14,13 +22,19 @@ addcnt-dummy: $(MEMOBJS) addcnt.o
 	$(CC) -O2 $(CFLAGS) -c -DDUMMY mem-main.c
 	$(call cc-link-command)
 
-addcnt-rec: $(MEMOBJS) mem-record.o addcnt.o
+addcnt-seqlock-rec: $(RECORD_OBJS) mem-record-seqlock.o addcnt.o
+	$(call cc-link-command)
+
+addcnt-seqbatch-rec: $(RECORD_OBJS) mem-record-seqbatch.o addcnt.o
 	$(call cc-link-command)
 
 addcnt-play: $(MEMOBJS) mem-replay.o addcnt.o
 	$(call cc-link-command)
 
-racey-rec: $(MEMOBJS) mem-record.o racey.o
+racey-seqlock-rec: $(RECORD_OBJS) mem-record-seqlock.o racey.o
+	$(call cc-link-command)
+
+racey-seqbatch-rec: $(RECORD_OBJS) mem-record-seqbatch.o racey.o
 	$(call cc-link-command)
 
 racey-play: $(MEMOBJS) mem-replay.o racey.o

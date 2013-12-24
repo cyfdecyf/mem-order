@@ -1,13 +1,18 @@
 #!/bin/bash
 
-if [[ $# != 3 || $# == 0 ]]; then
-    echo "Usage: run.sh <cmd> <nthr> <ntimes>"
+if [[ $# != 3 && $# != 4 ]]; then
+    echo "Usage: run.sh <cmd> <impl> <nthr> [ntimes]"
     exit 1
 fi
 
 cmd=$1
-nthr=$2
-ntimes=$3
+impl=$2
+nthr=$3
+if [[ $# == 4 ]]; then
+    ntimes=$4
+else
+    ntimes=10
+fi
 
 if [ $cmd = "addcnt" ]; then
     nobj=10
@@ -43,7 +48,7 @@ function process_log() {
 for i in `seq 1 $ntimes`; do
     rm -f replay-log/{memop*,version*,sorted-*}
     cecho "Record with $nthr threads"
-    ./$cmd-rec $nthr 2>debug-record > result-record
+    ./$cmd-$impl-rec $nthr 2>debug-record > result-record
 
     cecho "Processing log ..."
 
