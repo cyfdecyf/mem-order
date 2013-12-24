@@ -263,7 +263,7 @@ main(int argc, char* argv[])
   DPRINTF("end of parallel phase\n\n");
 
   /* print results */
-  printf("Short signature: %08x @ %p\n", mix_sig, &mix_sig);
+  printf("Short signature: %08x\n", mix_sig);
   fflush(stdout);
   /*usleep(5);*/
 
