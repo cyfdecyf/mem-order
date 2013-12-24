@@ -14,8 +14,6 @@ TARG = reorder-memop merge-memop \
 	   racey-seqbatch-rec \
 	   racey-play
 	   
-TEST = mem-test
-
 all: $(TARG)
 
 addcnt-dummy: $(MEMOBJS) addcnt.o
@@ -40,9 +38,6 @@ racey-seqbatch-rec: $(RECORD_OBJS) mem-record-seqbatch.o racey.o
 racey-play: $(MEMOBJS) mem-replay.o racey.o
 	$(call cc-link-command)
 
-mem-test: mem-test.o mem.o
-	$(call cc-link-command)
-
 infer: infer.o
 	$(call cc-link-command)
 	cp $@ log/
@@ -53,13 +48,21 @@ reorder-memop: reorder-memop.o mem.o log.o
 merge-memop: merge-memop.o mem.o log.o
 	$(call cxx-link-command)
 
-test: $(TARG)
-	./test.sh 4 10
+test-seqlock: $(TARG)
+	./test.sh addcnt seqlock 4 10
+	./test.sh racey seqlock 4 10
+
+test-seqbatch: $(TARG)
+	./test.sh addcnt seqbatch 4 10
+	./test.sh racey seqbatch 4 10
+
+test-rtmseq: $(TARG)
+	./test.sh addcnt rtmseq 4 10
+	./test.sh racey rtmseq 4 10
 
 clean:
 	-rm -f *.o
 	-rm -rf .*.d .*.dpp
 	-rm -f $(TARG)
-	-rm $(TEST)
 
 include rules.make
