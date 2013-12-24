@@ -48,14 +48,14 @@ function process_log() {
 for i in `seq 1 $ntimes`; do
     rm -f replay-log/{memop*,version*,sorted-*}
     cecho "Record with $nthr threads"
-    ./$cmd-$impl-rec $nthr 2>debug-record > result-record
+    ./$cmd-$impl-rec $nthr 2>debug-record > result-record || exit 1
 
     cecho "Processing log ..."
 
-    process_log $nobj
+    process_log $nobj || exit 1
 
     cecho "Replay with $nthr threads"
-    ./$cmd-play $nthr 2>debug-play > result-play
+    ./$cmd-play $nthr 2>debug-play > result-play || exit 1
 
     diff result-record result-play
 

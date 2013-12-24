@@ -10,4 +10,5 @@ dummy-acc
 reorder-memop
 merge-memop
 result-*
+debug-*
 *sublime-workspace

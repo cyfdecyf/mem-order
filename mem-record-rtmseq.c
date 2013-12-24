@@ -1,5 +1,6 @@
 #include "mem-record.h"
 #include "tsx/rtm.h"
+#include "tsx/assert.h"
 #include <stdio.h>
 
 // Provide atomic version & memory access by RTM (seqlock as fallback handler).
@@ -13,6 +14,11 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
     int ret = 0;
     if ((ret = _xbegin()) == _XBEGIN_STARTED) {
         version = info->version;
+        // XXX TSX note: this transaction may execute and commit while writer is
+        // inside fallback handler and has increased version by one. So the
+        // writer's update to version and memory does not appear atomic to the
+        // reader.
+        tsx_assert((version & 1) == 0);
         val = *addr;
         _xend();
     } else {

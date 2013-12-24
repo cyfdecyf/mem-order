@@ -3,6 +3,8 @@ CFLAGS = -std=gnu99 -g -O2 -Wall
 CXX = g++
 CXXFLAGS = -g -O2 -Wall
 
+VPATH=tsx
+
 LDFLAGS = -lpthread
 MEMOBJS = mem.o log.o
 RECORD_OBJS = $(MEMOBJS) mem-record.o
@@ -28,7 +30,7 @@ addcnt-seqlock-rec: $(RECORD_OBJS) mem-record-seqlock.o addcnt.o
 addcnt-seqbatch-rec: $(RECORD_OBJS) mem-record-seqbatch.o addcnt.o
 	$(call cc-link-command)
 
-addcnt-rtmseq-rec: $(RECORD_OBJS) mem-record-rtmseq.o addcnt.o
+addcnt-rtmseq-rec: $(RECORD_OBJS) mem-record-rtmseq.o addcnt.o tsx-assert.o
 	$(call cc-link-command)
 
 addcnt-play: $(MEMOBJS) mem-replay.o addcnt.o
@@ -37,7 +39,7 @@ addcnt-play: $(MEMOBJS) mem-replay.o addcnt.o
 racey-seqlock-rec: $(RECORD_OBJS) mem-record-seqlock.o racey.o
 	$(call cc-link-command)
 
-racey-rtmseq-rec: $(RECORD_OBJS) mem-record-rtmseq.o racey.o
+racey-rtmseq-rec: $(RECORD_OBJS) mem-record-rtmseq.o racey.o tsx-assert.o
 	$(call cc-link-command)
 
 racey-seqbatch-rec: $(RECORD_OBJS) mem-record-seqbatch.o racey.o
