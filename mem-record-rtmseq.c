@@ -44,6 +44,7 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
         _xend();
     } else {
         fprintf(stderr, "T%d R%ld aborted %x, %d\n", g_tid, memop, ret, _XABORT_CODE(ret));
+        g_rtm_abort_cnt++;
         do {
             version = info->version;
             while (unlikely(version & 1)) {
@@ -95,6 +96,7 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
         __sync_synchronize();
     } else {
         fprintf(stderr, "T%d W%ld aborted %x, %d\n", g_tid, memop, ret, _XABORT_CODE(ret));
+        g_rtm_abort_cnt++;
         spin_lock(&info->write_lock);
 
         version = info->version;

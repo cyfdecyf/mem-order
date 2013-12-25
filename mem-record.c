@@ -34,6 +34,8 @@ void log_access(char acc, objid_t objid, version_t ver, uint32_t val) {
 }
 #endif
 
+__thread int g_rtm_abort_cnt;
+
 void mem_init(tid_t nthr, int nobj) {
     g_nobj = nobj;
     g_objinfo = calloc_check(g_nobj, sizeof(*g_objinfo), "g_objinfo");
@@ -118,5 +120,8 @@ void mem_finish_thr() {
         }
     }
     mark_log_end();
+    if (g_rtm_abort_cnt > 0) {
+        fprintf(stderr, "T%d RTM abort %d\n", g_tid, g_rtm_abort_cnt);
+    }
 }
 
