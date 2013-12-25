@@ -27,7 +27,7 @@ static void take_log1(struct batmem_acc *acc) {
     struct last_objinfo *last = &g_last[objid];
 
     if (last->version != acc->version) {
-        log_order(g_tid, objid, acc->version, last);
+        log_order(objid, acc->version, last);
         last->version = acc->version;
     }
     if (is_write) {

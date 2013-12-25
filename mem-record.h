@@ -25,8 +25,7 @@ extern __thread struct last_objinfo *g_last;
 extern __thread memop_t memop;
 
 // Order recording.
-void log_order(tid_t tid, objid_t objid, version_t current_version,
-        struct last_objinfo *lastobj);
+void log_order(objid_t objid, version_t current_version, struct last_objinfo *lastobj);
 
 #ifdef DEBUG_ACCESS
 void log_access(char acc, objid_t objid, version_t ver, uint32_t val);

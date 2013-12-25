@@ -76,7 +76,7 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
     // 2. The previous memop which get previous version should happen before the
     // write.
     if (lastobj->version != version) {
-        log_order(tid, objid, version, lastobj);
+        log_order(objid, version, lastobj);
         // Update version so that following write after read don't need logs.
         lastobj->version = version;
     }
@@ -120,7 +120,7 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     struct last_objinfo *lastobj = &g_last[objid];
 
     if (lastobj->version != version) {
-        log_order(tid, objid, version, lastobj);
+        log_order(objid, version, lastobj);
     }
 
     /*

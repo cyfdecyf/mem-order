@@ -70,7 +70,7 @@ static inline struct wait_memop *next_memop_log(struct mapped_log *log) {
     return (struct wait_memop *)next_log_entry(log, sizeof(struct wait_memop));
 }
 
-static inline void log_other_wait_memop(tid_t tid, objid_t objid,
+static inline void log_other_wait_memop(objid_t objid,
         struct last_objinfo *lastobj) {
     struct wait_memop *l = next_memop_log(&logs.wait_memop);
 
@@ -79,8 +79,8 @@ static inline void log_other_wait_memop(tid_t tid, objid_t objid,
     l->memop = lastobj->memop;
 }
 
-static inline void mark_log_end(tid_t tid) {
-    // printf("T%d %d logent\n", (int)tid, logcnt);
+static inline void mark_log_end() {
+    // printf("T%d %d logent\n", (int)g_tid, logcnt);
     struct wait_version *l = next_version_log(&logs.wait_version);
     l->memop = -1;
     l->version = -1;
@@ -92,11 +92,11 @@ static inline void mark_log_end(tid_t tid) {
     k->memop = -1;
 }
 
-void log_order(tid_t tid, objid_t objid, version_t current_version,
+void log_order(objid_t objid, version_t current_version,
         struct last_objinfo *lastobj) {
     log_wait_version(current_version);
     if (lastobj->memop >= 0)
-        log_other_wait_memop(tid, objid, lastobj);
+        log_other_wait_memop(objid, lastobj);
 }
 
 // Dummy function to execute before mem_finish_thr()
@@ -112,11 +112,11 @@ void mem_finish_thr() {
     // modified by other thread later. Making a final read can record the
     // last read info which otherwise would be lost.
     for (int i = 0; i < g_nobj; i++) {
-        /*DPRINTF("T%hhd last RD obj %d @%d\n", tid, i, last[i].version);*/
+        /*DPRINTF("T%hhd last RD obj %d @%d\n", g_tid, i, last[i].version);*/
         if (g_last[i].memop >= 0) {
-            log_other_wait_memop(g_tid, i, &g_last[i]);
+            log_other_wait_memop(i, &g_last[i]);
         }
     }
-    mark_log_end(g_tid);
+    mark_log_end();
 }
 

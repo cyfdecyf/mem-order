@@ -59,7 +59,7 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
     struct last_objinfo *lastobj = &g_last[objid];
 
     if (lastobj->version != version) {
-        log_order(tid, objid, version, lastobj);
+        log_order(objid, version, lastobj);
         // Update version so that following write after read don't need logs.
         lastobj->version = version;
     }
@@ -115,7 +115,7 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     struct last_objinfo *lastobj = &g_last[objid];
 
     if (lastobj->version != version) {
-        log_order(tid, objid, version, lastobj);
+        log_order(objid, version, lastobj);
     }
 
 #ifdef DEBUG_ACCESS
