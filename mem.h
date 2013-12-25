@@ -12,7 +12,8 @@ extern "C" {
 #include <stdint.h>
 
 //#define BATCH_LOG_TAKE
-#define DEBUG_ACCESS
+// Note RTM cluster can't use DEBUG_ACCESS.
+//#define DEBUG_ACCESS
 
 // Number of shared objects, must be initialized first.
 extern int g_nobj;

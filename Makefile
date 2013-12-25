@@ -12,10 +12,12 @@ TARG = reorder-memop merge-memop \
 	   addcnt-seqlock-rec \
 	   addcnt-seqbatch-rec \
 	   addcnt-rtmseq-rec \
+	   addcnt-rtmcluster-rec \
 	   addcnt-play \
 	   racey-seqlock-rec \
 	   racey-seqbatch-rec \
 	   racey-rtmseq-rec \
+	   racey-rtmcluster-rec \
 	   racey-play
 	   
 all: $(TARG)
@@ -33,6 +35,9 @@ addcnt-seqbatch-rec: $(RECORD_OBJS) mem-record-seqbatch.o addcnt.o
 addcnt-rtmseq-rec: $(RECORD_OBJS) mem-record-rtmseq.o addcnt.o tsx-assert.o
 	$(call cc-link-command)
 
+addcnt-rtmcluster-rec: $(RECORD_OBJS) mem-record-rtmcluster.o addcnt.o tsx-assert.o
+	$(call cc-link-command)
+
 addcnt-play: $(MEMOBJS) mem-replay.o addcnt.o
 	$(call cc-link-command)
 
@@ -43,6 +48,9 @@ racey-rtmseq-rec: $(RECORD_OBJS) mem-record-rtmseq.o racey.o tsx-assert.o
 	$(call cc-link-command)
 
 racey-seqbatch-rec: $(RECORD_OBJS) mem-record-seqbatch.o racey.o
+	$(call cc-link-command)
+
+racey-rtmcluster-rec: $(RECORD_OBJS) mem-record-rtmcluster.o racey.o tsx-assert.o
 	$(call cc-link-command)
 
 racey-play: $(MEMOBJS) mem-replay.o racey.o
@@ -69,6 +77,10 @@ test-seqbatch: $(TARG)
 test-rtmseq: $(TARG)
 	./test.sh addcnt rtmseq 4 10
 	./test.sh racey rtmseq 4 10
+
+test-rtmcluster: $(TARG)
+	./test.sh addcnt rtmcluster 4 10
+	./test.sh racey rtmcluster 4 10
 
 clean:
 	-rm -f *.o
