@@ -159,7 +159,9 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
         *addr = val;
         barrier();
         info->version += 2;
-        /*__sync_synchronize();*/
+        // XXX The barrier is necessary, because there are reordering inside a
+        // transaction.  The reason is the same as in seqlock implementation.
+        __sync_synchronize();
     } else {
         spin_lock(&info->write_lock);
 
