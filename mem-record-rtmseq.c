@@ -90,7 +90,7 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
         barrier();
         info->version += 2;
         if (info->write_lock) {
-            _xabort(1);
+            _xabort(2);
         }
         _xend();
         __sync_synchronize();

@@ -94,6 +94,12 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
     int in_rtm = _xtest();
     if (in_rtm) {
         version = info->version;
+        // It's possible the transaction commits while other write is in
+        // fallback handler and has increased version by 1, thus we would get an
+        // odd version here.;
+        if (version & 1) {
+            _xabort(1);
+        }
         val = *addr;
     } else {
         do {
@@ -109,8 +115,11 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
     }
 
     if (in_rtm && (g_sim_bbcnt % RTM_BATCH_N == RTM_BATCH_N - 1))  {
+        // XXX A transaction is accessing different shared objects. Here we only
+        // check for a single object's write lock, it's not enough. That's why
+        // we need the odd version check in the transaction region.
         if (info->write_lock) {
-            _xabort(1);
+            _xabort(2);
         }
         _xend();
         // Avoid taking log inside transaction.
@@ -142,6 +151,10 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     int in_rtm = _xtest();
     if (in_rtm) {
         version = info->version;
+        // Same as in read transaction, see comments there.
+        if (version & 1) {
+            _xabort(3);
+        }
         barrier();
         *addr = val;
         barrier();
@@ -167,7 +180,7 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
 
     if (in_rtm && (g_sim_bbcnt % RTM_BATCH_N == RTM_BATCH_N - 1))  {
         if (info->write_lock) {
-            _xabort(1);
+            _xabort(4);
         }
         _xend();
         // Avoid taking log inside transaction.
