@@ -76,8 +76,7 @@ static void bind_core(long threadid) {
 
 #endif
 
-// Use non round number to check corner cases for batch log taking.
-#define   MAX_LOOP 2000
+#define   MAX_LOOP 20000
 #define   MAX_ELEM 64
 
 #define   PRIME1   103072243
