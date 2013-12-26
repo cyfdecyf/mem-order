@@ -38,7 +38,19 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
         // The problem here is that unlock is a write which touches a single
         // memory address. If we move the checking code to the end, and lock
         // check happens after unlock, the transaction has chance to commit.
-        if (info->write_lock) {
+        /*
+         *if (info->write_lock) {
+         *    _xabort(1);
+         *}
+         */
+        // XXX Actually we can check for odd version to ensure read tx does not
+        // execute in parrallel with write (this is how seqlock works). If we
+        // get even version, we are either before the 1st version inc or after
+        // the 2 version inc. Though we may execute while the write lock is
+        // taken, if the tx commits, the read tx happens atomically before or
+        // after the write. This can avoid some unnecessary aborts caused by
+        // lock taken by write.
+        if (version & 1) {
             _xabort(1);
         }
         _xend();
@@ -87,13 +99,17 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
         /*tsx_assert((version & 1) == 0);*/
         barrier();
         *addr = val;
-        barrier();
+        __sync_synchronize();
         info->version += 2;
+        // XXX For write, we must check for lock being taken since we need to
+        // ensure exclusive write.
+        // The problem happens if the write tx commits, while another write
+        // fallback just finished version read and before the 1st version inc.
+        // See the next comment.
         if (info->write_lock) {
             _xabort(2);
         }
         _xend();
-        __sync_synchronize();
     } else {
         fprintf(stderr, "T%d W%ld aborted %x, %d\n", g_tid, memop, ret, _XABORT_CODE(ret));
         g_rtm_abort_cnt++;
@@ -101,6 +117,8 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
 
         version = info->version;
         barrier();
+        // XXX If write tx does not check for lock or just check for odd
+        // version, may have problem here.
 
         // Odd version means that there's writer trying to update value.
         info->version++;
