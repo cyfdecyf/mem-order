@@ -66,21 +66,23 @@ reorder-memop: reorder-memop.o mem.o log.o
 merge-memop: merge-memop.o mem.o log.o
 	$(call cxx-link-command)
 
+TEST_NRUN = 50
+
 test-seqlock: $(TARG)
-	./test.sh addcnt seqlock 4 10
-	./test.sh racey seqlock 4 10
+	./test.sh addcnt seqlock 4 $(TEST_NRUN)
+	./test.sh racey seqlock 4 $(TEST_NRUN)
 
 test-seqbatch: $(TARG)
-	./test.sh addcnt seqbatch 4 10
-	./test.sh racey seqbatch 4 10
+	./test.sh addcnt seqbatch 4 $(TEST_NRUN)
+	./test.sh racey seqbatch 4 $(TEST_NRUN)
 
 test-rtmseq: $(TARG)
-	./test.sh addcnt rtmseq 4 10
-	./test.sh racey rtmseq 4 10
+	./test.sh addcnt rtmseq 4 $(TEST_NRUN)
+	./test.sh racey rtmseq 4 $(TEST_NRUN)
 
 test-rtmcluster: $(TARG)
-	./test.sh addcnt rtmcluster 4 10
-	./test.sh racey rtmcluster 4 10
+	./test.sh addcnt rtmcluster 4 $(TEST_NRUN)
+	./test.sh racey rtmcluster 4 $(TEST_NRUN)
 
 clean:
 	-rm -f *.o

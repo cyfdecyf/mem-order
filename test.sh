@@ -47,7 +47,7 @@ function process_log() {
 
 for i in `seq 1 $ntimes`; do
     rm -f replay-log/{memop*,version*,sorted-*}
-    cecho "Record with $nthr threads"
+    cecho "$i Record with $nthr threads"
     if ! ./$cmd-$impl-rec $nthr 2>debug-record > result-record; then
         cat debug-record result-record
         exit 1
@@ -57,7 +57,7 @@ for i in `seq 1 $ntimes`; do
 
     process_log $nobj || exit 1
 
-    cecho "Replay with $nthr threads"
+    cecho "$i Replay with $nthr threads"
     if ! ./$cmd-play $nthr 2>debug-play > result-play; then
         cat debug-play result-play
         exit 1
