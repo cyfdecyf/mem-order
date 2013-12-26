@@ -74,15 +74,15 @@ static void write_out_memop_log(const wait_memop_all &all, long total, tid_t tid
 
 int main(int argc, char const *argv[]) {
     if (argc != 3) {
-        printf("Usage: reorder-memop <tid> <nobj>\n");
+        printf("Usage: reorder-memop <nobj> <tid>\n");
         exit(1);
     }
 
-    int tid;
-    istringstream nthrs(argv[1]);
-    nthrs >> tid;
-    istringstream nobjs(argv[2]);
+    istringstream nobjs(argv[1]);
     nobjs >> g_nobj;
+    int tid;
+    istringstream nthrs(argv[2]);
+    nthrs >> tid;
 
     wait_memop_all all(g_nobj);
     long total = load_wait_memop_log(all, tid);

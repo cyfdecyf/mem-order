@@ -31,9 +31,9 @@ function process_binary_log() {
     local i
     let maxid=$nthr-1
     for i in `seq 0 $maxid`; do
-        ./reorder-memop $i $nobj
+        ./reorder-memop $nobj $i
     done
-    ./merge-memop $nthr $nobj
+    ./merge-memop $nobj $nthr
 }
 
 function process_log() {

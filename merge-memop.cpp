@@ -38,6 +38,9 @@ static inline void enqueue_next_waitmemop(LogQueue &pq, struct mapped_log &log, 
 }
 
 static void merge_memop(vector<struct mapped_log> &log, tid_t nthr) {
+    if (log.empty())
+        return;
+
     LogQueue pq;
 
     unsigned long total_size = 0;
@@ -54,7 +57,7 @@ static void merge_memop(vector<struct mapped_log> &log, tid_t nthr) {
     }
 
     if (total_size == 0) {
-        exit(1);
+        return;
     }
     assert(total_size % sizeof(struct wait_memop) == 0);
     // we need to add a tid record to each log entry
@@ -147,22 +150,25 @@ static void merge_memop(vector<struct mapped_log> &log, tid_t nthr) {
 
 int main(int argc, char const *argv[]) {
     if (argc != 3) {
-        printf("Usage: merge-memop <nthr> <nobj>\n");
+        printf("Usage: merge-memop <nobj> <nthr>\n");
         exit(1);
     }
 
-    int nthr;
-    istringstream nthrs(argv[1]);
-    nthrs >> nthr;
-    istringstream nobjs(argv[2]);
+    istringstream nobjs(argv[1]);
     nobjs >> g_nobj;
+    int nthr;
+    istringstream nthrs(argv[2]);
+    nthrs >> nthr;
 
     vector<struct mapped_log> log;
     struct mapped_log l;
     for (int i = 0; i < nthr; ++i) {
         // Push the log structure into the vector even if open failed
-        open_mapped_log("sorted-memop", i, &l);
-        log.push_back(l);
+        if (open_mapped_log("sorted-memop", i, &l) == 0) {
+            log.push_back(l);
+        } else {
+            printf("open sorted-memop-%d failed, maybe no harm\n", i);
+        }
     }
     merge_memop(log, (tid_t)nthr);
 
