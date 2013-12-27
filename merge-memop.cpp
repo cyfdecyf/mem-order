@@ -38,8 +38,7 @@ static inline void enqueue_next_waitmemop(LogQueue &pq, struct mapped_log &log, 
 }
 
 static void merge_memop(vector<struct mapped_log> &log, tid_t nthr) {
-    if (log.empty())
-        return;
+    assert((int)log.size() == nthr);
 
     LogQueue pq;
 
@@ -49,7 +48,7 @@ static void merge_memop(vector<struct mapped_log> &log, tid_t nthr) {
         if (log[i].fd != -1) {
             struct stat sb;
             if (fstat(log[i].fd, &sb) == -1) {
-                perror("fstat in enlarge_mapped_log");
+                perror("fstat in merge_memop");
                 exit(1);
             }
             total_size += sb.st_size;
@@ -163,12 +162,10 @@ int main(int argc, char const *argv[]) {
     vector<struct mapped_log> log;
     struct mapped_log l;
     for (int i = 0; i < nthr; ++i) {
-        // Push the log structure into the vector even if open failed
-        if (open_mapped_log("sorted-memop", i, &l) == 0) {
-            log.push_back(l);
-        } else {
-            printf("open sorted-memop-%d failed, maybe no harm\n", i);
-        }
+        // XXX Push the log structure into the vector even if open failed,
+        // because the index in the vector represents thread id.
+        open_mapped_log("sorted-memop", i, &l);
+        log.push_back(l);
     }
     merge_memop(log, (tid_t)nthr);
 
