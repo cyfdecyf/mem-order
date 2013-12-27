@@ -17,7 +17,12 @@ struct batmem_acc {
 static __thread struct batmem_acc g_batch_q[RTM_BATCH_N];
 static __thread int g_batch_idx;
 
-// With RTM, we know all the log in the batch 
+// Simluate every basic block containing RTM_BATCH_N memory accesses.
+// Start RTM at the start of a basic block, and end it at the end.
+static __thread int g_sim_bbcnt;
+
+// TODO With RTM, we know all the log in the batch are atomically executed.
+// Is there a way to utilize this property.
 
 static void process_1log(struct batmem_acc *acc) {
     char is_write = acc->objid < 0;
@@ -66,12 +71,18 @@ static void batch_write_log(objid_t objid, version_t version) {
 
 // Process all unhandled logs before thread exits.
 void before_finish_thr() {
+    if (g_sim_bbcnt % RTM_BATCH_N != 0) {
+        // Simulated basic block not finished.
+        // If we are inside RTM, just commit. Parallel fallback already checked
+        // in read/write tx region.
+        // Otherwise, the fallback handler has no locks holded, so nothing to be
+        // done.
+        if (_xtest()) {
+            _xend(); 
+        }
+    }
     batch_process_log();
 }
-
-// Simluate every basic block containing RTM_BATCH_N memory accesses.
-// Start RTM at the start of a basic block, and end it at the end.
-static __thread int g_sim_bbcnt;
 
 uint32_t mem_read(tid_t tid, uint32_t *addr) {
     version_t version;
