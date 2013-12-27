@@ -94,9 +94,9 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
     int in_rtm = _xtest();
     if (in_rtm) {
         version = info->version;
-        // It's possible the transaction commits while other write is in
+        // XXX It's possible the transaction commits while another write is in
         // fallback handler and has increased version by 1, thus we would get an
-        // odd version here.;
+        // odd version here. Also refer to read tx in rtmseq.
         if (version & 1) {
             _xabort(1);
         }
@@ -115,12 +115,17 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
     }
 
     if (in_rtm && (g_sim_bbcnt % RTM_BATCH_N == RTM_BATCH_N - 1))  {
+        // XXX Update: since we have checked odd version in tx region, we
+        // will abort for parallel execution of read tx and write fallback.
+        // So no need to check for lock here.
         // XXX A transaction is accessing different shared objects. Here we only
         // check for a single object's write lock, it's not enough. That's why
         // we need the odd version check in the transaction region.
-        if (info->write_lock) {
-            _xabort(2);
-        }
+        /*
+         *if (info->write_lock) {
+         *    _xabort(2);
+         *}
+         */
         _xend();
         // Avoid taking log inside transaction.
         batch_read_log(objid, version);
@@ -151,8 +156,9 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     int in_rtm = _xtest();
     if (in_rtm) {
         version = info->version;
-        // Same as in read transaction, see comments there.
-        if (version & 1) {
+        // XXX To ensure exclusion of write tx and fallback. Same as in read
+        // transaction.
+        if (info->write_lock) {
             _xabort(3);
         }
         barrier();
@@ -181,9 +187,14 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     }
 
     if (in_rtm && (g_sim_bbcnt % RTM_BATCH_N == RTM_BATCH_N - 1))  {
-        if (info->write_lock) {
-            _xabort(4);
-        }
+        // XXX Update: since we have checked lock in tx region, we
+        // will abort for parallel execution of write tx and write fallback.
+        // So no need to check for lock here.
+        /*
+         *if (info->write_lock) {
+         *    _xabort(4);
+         *}
+         */
         _xend();
         // Avoid taking log inside transaction.
         batch_write_log(objid, version);
