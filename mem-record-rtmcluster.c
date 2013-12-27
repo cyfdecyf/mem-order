@@ -79,7 +79,7 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
     objid_t objid = calc_objid(addr);
     struct objinfo *info = &g_objinfo[objid];
 
-    if ((g_sim_bbcnt % RTM_BATCH_N) == 0) {
+    if ((g_sim_bbcnt % RTM_BATCH_N) == 0) { // Simulate basic block begin.
         assert(!_xtest());
         int ret = _xbegin();
         (void)ret;
@@ -115,7 +115,7 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
         } while (version != info->version);
     }
 
-    if (in_rtm && (g_sim_bbcnt % RTM_BATCH_N == RTM_BATCH_N - 1))  {
+    if (in_rtm && (g_sim_bbcnt % RTM_BATCH_N == RTM_BATCH_N - 1)) { // Simulate basic block end.
         // XXX Update: since we have checked odd version in tx region, we
         // will abort for parallel execution of read tx and write fallback.
         // So no need to check for lock here.
