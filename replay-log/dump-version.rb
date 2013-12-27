@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 
+# Corresponds to struct wait_version in mem.h.
 packstr = "qq"
 entsize = 16
 
