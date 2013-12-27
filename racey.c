@@ -37,6 +37,7 @@
 
 #undef DEBUG
 /*#define DEBUG*/
+#define NOFS
 
 #ifdef DEBUG
 # define DPRINTF(fmt, ...) \
@@ -76,7 +77,7 @@ static void bind_core(long threadid) {
 
 #endif
 
-#define   MAX_LOOP 20000
+#define   MAX_LOOP 1000000
 #define   MAX_ELEM 64
 
 #define   PRIME1   103072243
@@ -106,8 +107,11 @@ typedef struct cl_uint32 {
 } __attribute__((aligned(64))) cl_uint32;
 
 /* shared variables */
-/* uint32_t g_sig[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}; */
+#ifdef NOFS 
 cl_uint32 g_sig[16] = { {0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}, {15}};
+#else
+uint32_t g_sig[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+#endif
 
 union {
   /* 64 bytes cache line */
@@ -168,7 +172,11 @@ void* ThreadBody(void* _tid)
    * should change the final value of mix
    */
   for(i = 0 ; i < MAX_LOOP; i++) {
+#ifdef NOFS
     uint32_t num = g_sig[g_tid].sigval;
+#else
+    uint32_t num = g_sig[g_tid];
+#endif
     uint32_t index1 = num%MAX_ELEM;
     uint32_t index2;
     /*num = mix(num, g_m[index1].value);*/
@@ -178,7 +186,11 @@ void* ThreadBody(void* _tid)
     num = mix(num, mem_read(g_tid, (uint32_t *)&g_m[index2].value));
     /*g_m[index2].value = num;*/
     mem_write(g_tid, (uint32_t *)&g_m[index2].value, num);
+#ifdef NOFS
     g_sig[g_tid].sigval = num;
+#else
+    g_sig[g_tid] = num;
+#endif
     /* Optionally, yield to other processors (Solaris use sched_yield()) */
     /*pthread_yield();*/
   }
@@ -261,9 +273,17 @@ main(int argc, char* argv[])
   }
 
   /* compute the result */
+#ifdef NOFS
   mix_sig = g_sig[0].sigval;
+#else
+  mix_sig = g_sig[0];
+#endif
   for(i = 1; i < NumProcs ; i++) {
+#ifdef NOFS
     mix_sig = mix(g_sig[i].sigval, mix_sig);
+#else
+    mix_sig = mix(g_sig[i], mix_sig);
+#endif
   }
 
   PHASE_MARKER; /* end of parallel phase */

@@ -14,8 +14,6 @@ struct batmem_acc {
     version_t version;
 };
 
-#define RTM_BATCH_N 3
-
 static __thread struct batmem_acc g_batch_q[RTM_BATCH_N];
 static __thread int g_batch_idx;
 
