@@ -81,12 +81,15 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
 
     if ((g_sim_bbcnt % RTM_BATCH_N) == 0) {
         assert(!_xtest());
-        int ret = 0;
-        if ((ret = _xbegin()) != _XBEGIN_STARTED) {
+        int ret = _xbegin();
+        (void)ret;
+#ifdef RTM_STAT
+        if (ret != _XBEGIN_STARTED) {
             fprintf(stderr, "T%d R%ld aborted %x, %d\n", g_tid, memop, ret,
                     _XABORT_CODE(ret));
             g_rtm_abort_cnt++;
         }
+#endif
     }
 
     int in_rtm = _xtest();
@@ -143,12 +146,15 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
 
     if ((g_sim_bbcnt % RTM_BATCH_N) == 0) {
         assert(!_xtest());
-        int ret = 0;
-        if ((ret = _xbegin()) != _XBEGIN_STARTED) {
+        int ret = _xbegin();
+        (void)ret;
+#ifdef RTM_STAT
+        if (ret != _XBEGIN_STARTED) {
             fprintf(stderr, "T%d W%ld aborted %x, %d\n", g_tid, memop, ret,
                     _XABORT_CODE(ret));
             g_rtm_abort_cnt++;
         }
+#endif
     }
 
     int in_rtm = _xtest();

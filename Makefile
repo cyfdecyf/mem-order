@@ -66,7 +66,7 @@ reorder-memop: reorder-memop.o mem.o log.o
 merge-memop: merge-memop.o mem.o log.o
 	$(call cxx-link-command)
 
-TEST_NRUN = 50
+TEST_NRUN = 30
 
 test-seqlock: $(TARG)
 	./test.sh addcnt seqlock 4 $(TEST_NRUN)

@@ -13,7 +13,7 @@ extern "C" {
 
 // Note RTM cluster can't use DEBUG_ACCESS.
 //#define DEBUG_ACCESS
-/* #define RTM_STAT */
+//#define RTM_STAT
 
 #define RTM_BATCH_N 7
 
