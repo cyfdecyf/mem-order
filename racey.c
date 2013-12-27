@@ -135,11 +135,10 @@ uint32_t mix(uint32_t i, uint32_t j) {
 /* The function which is called once the thread is created */
 void* ThreadBody(void* _tid)
 {
-  g_tid = (int)(long)_tid;
   int i;
   DPRINTF("thread %d created\n", g_tid);
 
-  mem_init_thr(g_tid);
+  mem_init_thr((tid_t)(long)_tid);
 
   /*
    * Thread Initialization:

@@ -46,8 +46,7 @@ static void sync_thread(volatile int *flag) {
 
 static inline void thr_start(void *_tid) {
     // Must set tid before using
-    g_tid = (tid_t)(long)_tid;
-    mem_init_thr(g_tid);
+    mem_init_thr((tid_t)(long)_tid);
     sync_thread(&start_flag);
 }
 

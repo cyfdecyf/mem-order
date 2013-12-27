@@ -159,6 +159,7 @@ void mem_init(tid_t nthr, int nobj) {
 }
 
 void mem_init_thr(tid_t tid) {
+    g_tid = tid;
     memop_cnt[tid] = &memop;
 
     if (open_mapped_log("version", tid, &wait_version_log) != 0) {

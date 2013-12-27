@@ -44,6 +44,7 @@ void mem_init(tid_t nthr, int nobj) {
 }
 
 void mem_init_thr(tid_t tid) {
+    g_tid = tid;
     g_last = calloc_check(g_nobj, sizeof(*g_last),
             "prev_info[tid]");
     for (int i = 0; i < g_nobj; i++) {
