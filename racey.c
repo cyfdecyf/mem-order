@@ -100,8 +100,15 @@ static int sync_thread() {
     return v;
 }
 
+/* signature aligned to cache line size */
+typedef struct cl_uint32 {
+    uint32_t sigval;
+} __attribute__((aligned(64))) cl_uint32;
+
 /* shared variables */
-uint32_t g_sig[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+/* uint32_t g_sig[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}; */
+cl_uint32 g_sig[16] = { {0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}, {15}};
+
 union {
   /* 64 bytes cache line */
   char    b[64];
@@ -161,7 +168,7 @@ void* ThreadBody(void* _tid)
    * should change the final value of mix
    */
   for(i = 0 ; i < MAX_LOOP; i++) {
-    uint32_t num = g_sig[g_tid];
+    uint32_t num = g_sig[g_tid].sigval;
     uint32_t index1 = num%MAX_ELEM;
     uint32_t index2;
     /*num = mix(num, g_m[index1].value);*/
@@ -171,7 +178,7 @@ void* ThreadBody(void* _tid)
     num = mix(num, mem_read(g_tid, (uint32_t *)&g_m[index2].value));
     /*g_m[index2].value = num;*/
     mem_write(g_tid, (uint32_t *)&g_m[index2].value, num);
-    g_sig[g_tid] = num;
+    g_sig[g_tid].sigval = num;
     /* Optionally, yield to other processors (Solaris use sched_yield()) */
     /*pthread_yield();*/
   }
@@ -254,9 +261,9 @@ main(int argc, char* argv[])
   }
 
   /* compute the result */
-  mix_sig = g_sig[0];
+  mix_sig = g_sig[0].sigval;
   for(i = 1; i < NumProcs ; i++) {
-    mix_sig = mix(g_sig[i], mix_sig);
+    mix_sig = mix(g_sig[i].sigval, mix_sig);
   }
 
   PHASE_MARKER; /* end of parallel phase */
