@@ -36,7 +36,6 @@ static void handler(int sig)
 
 static int nthr;
 static volatile int start_flag;
-static volatile int finish_flag;
 
 static void sync_thread(volatile int *flag) {
     __sync_fetch_and_add(flag, 1);
@@ -51,7 +50,6 @@ static inline void thr_start(void *_tid) {
 }
 
 static inline void thr_end() {
-    sync_thread(&finish_flag);
     mem_finish_thr();
 }
 
