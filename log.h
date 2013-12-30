@@ -28,7 +28,9 @@ int enlarge_mapped_log(struct mapped_log *log);
 int open_mapped_log(const char *name, int id, struct mapped_log *log);
 int open_mapped_log_path(const char *path, struct mapped_log *log);
 
+int truncate_log(struct mapped_log *log);
 int unmap_log(struct mapped_log *log);
+int unmap_truncate_log(struct mapped_log *log);
 
 void *create_mapped_file(const char *name, unsigned long size);
 
@@ -49,6 +51,10 @@ static inline char *read_log_entry(struct mapped_log *log, int entry_size) {
     char *start = log->buf;
     log->buf += entry_size;
     return start;
+}
+
+static inline int log_end(struct mapped_log *log) {
+    return log->buf >= log->end;
 }
 
 #define LOGDIR "replay-log/"

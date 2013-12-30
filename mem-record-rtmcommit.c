@@ -45,6 +45,7 @@ void mem_finish_thr() {
             log_commit(ts);
         }
     }
+    unmap_truncate_log(&g_commit_log);
 }
 
 uint32_t mem_read(tid_t tid, uint32_t *addr) {

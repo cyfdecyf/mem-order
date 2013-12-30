@@ -84,6 +84,7 @@ static inline void log_other_wait_memop(objid_t objid,
     l->memop = lastobj->memop;
 }
 
+// Use -1 to mark log end simplifies log processing.
 static inline void mark_log_end() {
     // printf("T%d %d logent\n", (int)g_tid, logcnt);
     struct wait_version *l = next_version_log(&logs.wait_version);
@@ -123,6 +124,8 @@ void mem_finish_thr() {
         }
     }
     mark_log_end();
+    unmap_truncate_log(&logs.wait_version);
+    unmap_truncate_log(&logs.wait_memop);
 #ifdef RTM_STAT
     if (g_rtm_abort_cnt > 0) {
         fprintf(stderr, "T%d RTM abort %d\n", g_tid, g_rtm_abort_cnt);

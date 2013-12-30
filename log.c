@@ -140,12 +140,35 @@ int open_mapped_log(const char *name, int id, struct mapped_log *log) {
     return open_mapped_log_path(path, log);
 }
 
+// Truncate unused part of the log.
+int truncate_log(struct mapped_log *log) {
+    struct stat sb;
+    if (fstat(log->fd, &sb) == -1) {
+        perror("fstat in unmap log");
+        exit(1);
+    }
+
+    int ret = 0;
+    if ((ret = ftruncate(log->fd, sb.st_size - (log->end - log->buf))) == -1) {
+        printf("size: total %ld, garbage: %ld\n", sb.st_size, log->end - log->buf);
+        perror("ftruncate in unmap_log");
+    }
+    return ret;
+}
+
 int unmap_log(struct mapped_log *log) {
     if (munmap(log->start, log->end - log->start) == -1) {
-        perror("munmap");
+        perror("munmap in unmap_log");
         return -1;
     }
     return 0;
+}
+
+int unmap_truncate_log(struct mapped_log *log) {
+    int ret = unmap_log(log);
+    if (ret != 0)
+        return ret;
+    return truncate_log(log);
 }
 
 void *create_mapped_file(const char *path, unsigned long size) {
