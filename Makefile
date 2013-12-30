@@ -15,13 +15,15 @@ TARG = reorder-memop merge-memop merge-commit \
 	   addcnt-rtmcluster-rec \
 	   addcnt-rtmcommit-rec \
 	   addcnt-play \
+	   addcnt-rtmcommit-play \
 	   \
 	   racey-seqlock-rec \
 	   racey-seqbatch-rec \
 	   racey-rtmseq-rec \
 	   racey-rtmcluster-rec \
 	   racey-rtmcommit-rec \
-	   racey-play
+	   racey-play \
+	   racey-rtmcommit-play \
 	   
 all: $(TARG)
 
@@ -43,6 +45,9 @@ addcnt-rtmcommit-rec: $(MEMOBJS) mem-record-rtmcommit.o addcnt.o tsx-assert.o
 addcnt-play: $(MEMOBJS) mem-replay.o addcnt.o
 	$(call cc-link-command)
 
+addcnt-rtmcommit-play: $(MEMOBJS) mem-replay-rtmcommit.o addcnt.o
+	$(call cc-link-command)
+
 racey-seqlock-rec: $(RECORD_OBJS) mem-record-seqlock.o racey.o
 	$(call cc-link-command)
 
@@ -59,6 +64,9 @@ racey-rtmcommit-rec: $(MEMOBJS) mem-record-rtmcommit.o racey.o tsx-assert.o
 	$(call cc-link-command)
 
 racey-play: $(MEMOBJS) mem-replay.o racey.o
+	$(call cc-link-command)
+
+racey-rtmcommit-play: $(MEMOBJS) mem-replay-rtmcommit.o racey.o
 	$(call cc-link-command)
 
 infer: infer.o
