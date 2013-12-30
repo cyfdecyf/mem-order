@@ -22,6 +22,7 @@ struct mapped_log {
 };
 
 int new_mapped_log(const char *name, int id, struct mapped_log *log);
+int new_mapped_log_path(const char *name, struct mapped_log *log);
 int enlarge_mapped_log(struct mapped_log *log);
 
 // The following two function return 0 on success.
@@ -45,7 +46,6 @@ static inline char *next_log_entry(struct mapped_log *log, int entry_size) {
 
 static inline char *read_log_entry(struct mapped_log *log, int entry_size) {
     if ((log->buf + entry_size) > log->end) {
-        printf("no more log entry");
         return NULL;
     }
     char *start = log->buf;

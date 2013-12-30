@@ -8,7 +8,7 @@ VPATH=tsx
 LDFLAGS = -lpthread
 MEMOBJS = mem.o log.o
 RECORD_OBJS = $(MEMOBJS) mem-record.o
-TARG = reorder-memop merge-memop \
+TARG = reorder-memop merge-memop merge-commit \
 	   addcnt-seqlock-rec \
 	   addcnt-seqbatch-rec \
 	   addcnt-rtmseq-rec \
@@ -69,6 +69,9 @@ reorder-memop: reorder-memop.o mem.o log.o
 	$(call cxx-link-command)
 
 merge-memop: merge-memop.o mem.o log.o
+	$(call cxx-link-command)
+
+merge-commit: merge-commit.o log.o
 	$(call cxx-link-command)
 
 TEST_NRUN = 30

@@ -30,10 +30,7 @@ FILE *open_log(const char *name, long id) {
     return handle_log(name, id, "r");
 }
 
-int new_mapped_log(const char *name, int id, struct mapped_log *log) {
-    char path[MAX_PATH_LEN];
-    logpath(path, name, id);
-
+int new_mapped_log_path(const char *path, struct mapped_log *log) {
     log->fd = open(path, O_RDWR|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
     if (log->fd == -1) {
         perror("creat in new_mapped_log");
@@ -59,6 +56,12 @@ int new_mapped_log(const char *name, int id, struct mapped_log *log) {
         exit(1);
     }
     return 0;
+}
+
+int new_mapped_log(const char *name, int id, struct mapped_log *log) {
+    char path[MAX_PATH_LEN];
+    logpath(path, name, id);
+    return new_mapped_log_path(path, log);
 }
 
 int enlarge_mapped_log(struct mapped_log *log) {
