@@ -9,6 +9,12 @@
 // Record RTM commit order. Upon abort, acquire a global lock to execute in
 // sequential order.
 
+static __rtm_force_inline inline uint64_t rdtsc() {
+    uint64_t h, l;
+    asm volatile ("rdtscp" : "=d" (h), "=a" (l));
+    return (h << 32) | l;
+}
+
 static __thread int64_t g_sim_bbcnt;
 
 static __thread struct mapped_log g_commit_log;
@@ -27,23 +33,38 @@ void mem_init_thr(tid_t tid) {
     new_mapped_log("commit", tid, &g_commit_log);
 }
 
+static void __rtm_force_inline bb_start(char op) {
+        assert(!_xtest());
+        int ret = 0;
+        if ((ret = _xbegin()) != _XBEGIN_STARTED) {
+#ifdef RTM_STAT
+            fprintf(stderr, "T%d %c%ld aborted %x, %d\n", g_tid, op, g_sim_bbcnt, ret,
+                    _XABORT_CODE(ret));
+            g_rtm_abort_cnt++;
+#endif
+            ticket_lock(&g_lock);
+        }
+}
+
+static void __rtm_force_inline bb_end() {
+    if (_xtest()) { // Inside RTM.
+        // Check if there are threads executing in fallback handler.
+        if (!ticket_lockable(&g_lock)) {
+            _xabort(1);
+        }
+        uint64_t ts = rdtsc();
+        _xend();
+        log_commit(ts);
+    } else {
+        uint64_t ts = rdtsc();
+        ticket_unlock(&g_lock);
+        log_commit(ts);
+    }
+}
+
 void mem_finish_thr() {
     if (g_sim_bbcnt % RTM_BATCH_N != 0) {
-        // Simulated basic block not finished.
-        if (_xtest()) { // Inside RTM
-            if (!ticket_lockable(&g_lock)) {
-                _xabort(1);
-            }
-            uint64_t ts = rdtsc();
-            _xend();
-            log_commit(ts);
-        } else {
-            // For threads not inside RTM, it must have acquired the ticket lock
-            // in order to execute. So must release it before exit.
-            uint64_t ts = rdtsc();
-            ticket_unlock(&g_lock);
-            log_commit(ts);
-        }
+        bb_end();
     }
 #ifdef RTM_STAT
     if (g_rtm_abort_cnt > 0) {
@@ -58,34 +79,13 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
     uint32_t val;
 
     if ((g_sim_bbcnt % RTM_BATCH_N) == 0) { // Simulate basic block begin.
-        assert(!_xtest());
-        int ret = 0;
-        if ((ret = _xbegin()) != _XBEGIN_STARTED) {
-#ifdef RTM_STAT
-            fprintf(stderr, "T%d R%ld aborted %x, %d\n", g_tid, g_sim_bbcnt, ret,
-                    _XABORT_CODE(ret));
-            g_rtm_abort_cnt++;
-#endif
-            ticket_lock(&g_lock);
-        }
+        bb_start('R');
     }
 
     val = *addr;
 
     if (g_sim_bbcnt % RTM_BATCH_N == RTM_BATCH_N - 1) { // Simulate basic block end.
-        if (_xtest()) { // Inside RTM.
-            // Check if there are threads executing in fallback handler.
-            if (!ticket_lockable(&g_lock)) {
-                _xabort(1);
-            }
-            uint64_t ts = rdtsc();
-            _xend();
-            log_commit(ts);
-        } else {
-            uint64_t ts = rdtsc();
-            ticket_unlock(&g_lock);
-            log_commit(ts);
-        }
+        bb_end();
     }
 
     g_sim_bbcnt++;
@@ -94,34 +94,13 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
 
 void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     if ((g_sim_bbcnt % RTM_BATCH_N) == 0) { // Simulate basic block begin.
-        assert(!_xtest());
-        int ret = 0;
-        if ((ret = _xbegin()) != _XBEGIN_STARTED) {
-#ifdef RTM_STAT
-            fprintf(stderr, "T%d R%ld aborted %x, %d\n", g_tid, g_sim_bbcnt, ret,
-                    _XABORT_CODE(ret));
-            g_rtm_abort_cnt++;
-#endif
-            ticket_lock(&g_lock);
-        }
+        bb_start('W');
     }
 
     *addr = val;
 
     if (g_sim_bbcnt % RTM_BATCH_N == RTM_BATCH_N - 1) { // Simulate basic block end.
-        if (_xtest()) { // Inside RTM.
-            // Check if there are threads executing in fallback handler.
-            if (!ticket_lockable(&g_lock)) {
-                _xabort(1);
-            }
-            uint64_t ts = rdtsc();
-            _xend();
-            log_commit(ts);
-        } else {
-            uint64_t ts = rdtsc();
-            ticket_unlock(&g_lock);
-            log_commit(ts);
-        }
+        bb_end();
     }
 
     g_sim_bbcnt++;

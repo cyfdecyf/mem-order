@@ -102,12 +102,6 @@ void *calloc_check(long nmemb, long size, const char *err_msg);
 #define likely(x) __builtin_expect(!!(x), 0)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
-static inline uint64_t rdtsc() {
-    uint64_t h, l;
-    asm volatile ("rdtscp" : "=d" (h), "=a" (l));
-    return (h << 32) | l;
-}
-
 #define __constructor__ __attribute__((constructor))
 
 #ifdef __cplusplus
