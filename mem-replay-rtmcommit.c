@@ -18,7 +18,7 @@ tid_t g_next_thr;
 void read_next_thr() {
     tid_t *ptid = (tid_t *)read_log_entry(&g_commit_log, sizeof(tid_t));
     if (!ptid) {
-        printf("no more threads in commit order log\n");
+        fprintf(stderr, "no more threads in commit order log\n");
         /*exit(1);*/
         return;
     }

@@ -9,7 +9,7 @@
 // Record RTM commit order. Upon abort, acquire a global lock to execute in
 // sequential order.
 
-static __thread int g_sim_bbcnt;
+static __thread int64_t g_sim_bbcnt;
 
 static __thread struct mapped_log g_commit_log;
 
@@ -51,6 +51,7 @@ void mem_finish_thr() {
     }
 #endif
     unmap_truncate_log(&g_commit_log);
+    fprintf(stderr, "T%d g_sim_bbcnt %ld\n", g_tid, g_sim_bbcnt);
 }
 
 uint32_t mem_read(tid_t tid, uint32_t *addr) {
