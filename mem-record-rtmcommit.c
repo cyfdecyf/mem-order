@@ -47,7 +47,7 @@ void mem_finish_thr() {
     }
 #ifdef RTM_STAT
     if (g_rtm_abort_cnt > 0) {
-        fprintf(stderr, "T%d RTM abort %d\n", g_tid, g_rtm_abort_cnt);
+        fprintf(stderr, "T%d RTM total abort %d\n", g_tid, g_rtm_abort_cnt);
     }
 #endif
     unmap_truncate_log(&g_commit_log);
