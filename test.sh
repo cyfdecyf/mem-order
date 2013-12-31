@@ -26,7 +26,7 @@ function cecho() {
     echo -e "$COLOR$*\e[0m"
 }
 
-function process_binary_log() {
+function process_memorder_log() {
     local maxid
     local i
     let maxid=$nthr-1
@@ -37,16 +37,15 @@ function process_binary_log() {
 }
 
 function process_log() {
-    file log/memop-0 | grep 'ASCII' > /dev/null
-    if [ $? == 0 ]; then
-        process_text_log
+    if [[ $impl == "rtmcommit" ]]; then
+        ./merge-commit $nthr
     else
-        process_binary_log $1
+        process_memorder_log $1
     fi
 }
 
 for i in `seq 1 $ntimes`; do
-    rm -f replay-log/{memop*,version*,sorted-*}
+    rm -f replay-log/{memop*,version*,sorted-*,commit*}
     cecho "$i Record with $nthr threads"
     if ! ./$cmd-$impl-rec $nthr 2>debug-record > result-record; then
         cat debug-record result-record
@@ -58,7 +57,12 @@ for i in `seq 1 $ntimes`; do
     process_log $nobj || exit 1
 
     cecho "$i Replay with $nthr threads"
-    if ! ./$cmd-play $nthr 2>debug-play > result-play; then
+    replaycmd=$cmd-play
+    if [[ $impl == "rtmcommit" ]]; then
+        replaycmd=$cmd-rtmcommit-play
+    fi
+
+    if ! ./$replaycmd $nthr 2>debug-play > result-play; then
         cat debug-play result-play
         exit 1
     fi

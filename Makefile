@@ -100,6 +100,10 @@ test-rtmcluster: $(TARG)
 	./test.sh addcnt rtmcluster 4 $(TEST_NRUN)
 	./test.sh racey rtmcluster 4 $(TEST_NRUN)
 
+test-rtmcommit: $(TARG)
+	./test.sh addcnt rtmcommit 4 $(TEST_NRUN)
+	./test.sh racey rtmcommit 4 $(TEST_NRUN)
+
 clean:
 	-rm -f *.o
 	-rm -rf .*.d .*.dpp
