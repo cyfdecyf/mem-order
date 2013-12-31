@@ -39,7 +39,6 @@ void mem_init_thr(tid_t tid) {
 }
 
 void mem_finish_thr() {
-    printf("T%d finish\n", g_tid);
     if (g_sim_bbcnt % RTM_BATCH_N != 0) {
         read_next_thr();
     }

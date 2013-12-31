@@ -17,6 +17,11 @@ extern "C" {
 
 #define RTM_BATCH_N 7
 
+#ifdef RTM_STAT
+// Count RTM aborts.
+extern __thread int g_rtm_abort_cnt;
+#endif
+
 // Number of shared objects, must be initialized first.
 extern int g_nobj;
 

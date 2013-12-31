@@ -24,11 +24,6 @@ extern __thread struct last_objinfo *g_last;
 // Memory operation count for each thread.
 extern __thread memop_t memop;
 
-#ifdef RTM_STAT
-// Count RTM aborts.
-extern __thread int g_rtm_abort_cnt;
-#endif
-
 // Order recording.
 void log_order(objid_t objid, version_t current_version, struct last_objinfo *lastobj);
 

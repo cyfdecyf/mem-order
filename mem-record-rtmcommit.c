@@ -45,6 +45,11 @@ void mem_finish_thr() {
             log_commit(ts);
         }
     }
+#ifdef RTM_STAT
+    if (g_rtm_abort_cnt > 0) {
+        fprintf(stderr, "T%d RTM abort %d\n", g_tid, g_rtm_abort_cnt);
+    }
+#endif
     unmap_truncate_log(&g_commit_log);
 }
 
@@ -56,7 +61,7 @@ uint32_t mem_read(tid_t tid, uint32_t *addr) {
         int ret = 0;
         if ((ret = _xbegin()) != _XBEGIN_STARTED) {
 #ifdef RTM_STAT
-            fprintf(stderr, "T%d R%ld aborted %x, %d\n", g_tid, memop, ret,
+            fprintf(stderr, "T%d R%ld aborted %x, %d\n", g_tid, g_sim_bbcnt, ret,
                     _XABORT_CODE(ret));
             g_rtm_abort_cnt++;
 #endif
@@ -92,7 +97,7 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
         int ret = 0;
         if ((ret = _xbegin()) != _XBEGIN_STARTED) {
 #ifdef RTM_STAT
-            fprintf(stderr, "T%d R%ld aborted %x, %d\n", g_tid, memop, ret,
+            fprintf(stderr, "T%d R%ld aborted %x, %d\n", g_tid, g_sim_bbcnt, ret,
                     _XABORT_CODE(ret));
             g_rtm_abort_cnt++;
 #endif
