@@ -99,7 +99,7 @@ void *calloc_check(long nmemb, long size, const char *err_msg);
 
 static inline uint64_t rdtsc() {
     uint64_t h, l;
-    asm volatile ("rdtsc" : "=d" (h), "=a" (l));
+    asm volatile ("rdtscp" : "=d" (h), "=a" (l));
     return (h << 32) | l;
 }
 
