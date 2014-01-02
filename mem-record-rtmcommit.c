@@ -11,7 +11,9 @@
 
 static __rtm_force_inline inline uint64_t rdtsc() {
     uint64_t h, l;
-    asm volatile ("rdtscp" : "=d" (h), "=a" (l));
+    asm volatile (
+            "rdtscp\n\t"
+            : "=d" (h), "=a" (l) : : "rcx", "memory");
     return (h << 32) | l;
 }
 
