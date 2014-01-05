@@ -11,6 +11,7 @@
 
 #define spin_lock ticket_lock
 #define spin_unlock ticket_unlock
+#define spin_lockable ticket_lockable
 #define spinlock ticketlock
 
 #define TICKET_SPINLOCK_INITIALIZER { 0, 0 };

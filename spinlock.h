@@ -46,4 +46,9 @@ static inline int spin_trylock(spinlock *lock)
     return xchg_8(lock, BUSY);
 }
 
+static inline int spin_lockable(spinlock *lock)
+{
+    return *lock != BUSY;
+}
+
 #endif /* _SPINLOCK_XCHG_H */

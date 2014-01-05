@@ -1,6 +1,7 @@
 #include "mem-record.h"
 #include "log.h"
 #include "ticket-spinlock.h"
+/*#include "spinlock.h"*/
 #include "tsx/rtm.h"
 #include "tsx/assert.h"
 #include <stdio.h>
@@ -27,7 +28,7 @@ static inline void log_commit(uint64_t ts) {
     *p = ts;
 }
 
-static ticketlock g_lock;
+static spinlock g_lock;
 
 void mem_init(tid_t nthr, int nobj) { }
 
@@ -45,14 +46,14 @@ static void __rtm_force_inline bb_start(char op) {
                     _XABORT_CODE(ret));
             g_rtm_abort_cnt++;
 #endif
-            ticket_lock(&g_lock);
+            spin_lock(&g_lock);
         }
 }
 
 static void __rtm_force_inline bb_end() {
     if (_xtest()) { // Inside RTM.
         // Check if there are threads executing in fallback handler.
-        if (!ticket_lockable(&g_lock)) {
+        if (!spin_lockable(&g_lock)) {
             _xabort(1);
         }
         uint64_t ts = rdtsc();
@@ -60,7 +61,7 @@ static void __rtm_force_inline bb_end() {
         log_commit(ts);
     } else {
         uint64_t ts = rdtsc();
-        ticket_unlock(&g_lock);
+        spin_unlock(&g_lock);
         log_commit(ts);
     }
 }
