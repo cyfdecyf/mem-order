@@ -10,6 +10,15 @@
 // Record RTM commit order. Upon abort, acquire a global lock to execute in
 // sequential order.
 
+#define gettime addtime
+/*#define gettime rdtsc*/
+
+static uint64_t g_time;
+
+static __rtm_force_inline inline uint64_t addtime() {
+    return g_time++;
+}
+
 static __rtm_force_inline inline uint64_t rdtsc() {
     uint64_t h, l;
     asm volatile (
@@ -41,9 +50,11 @@ static void __rtm_force_inline bb_start(char op) {
         assert(!_xtest());
         int ret = 0;
         if ((ret = _xbegin()) != _XBEGIN_STARTED) {
-#ifdef RTM_STAT
+#ifdef VERBOSE
             fprintf(stderr, "T%d %c%ld aborted %x, %d\n", g_tid, op, g_sim_bbcnt, ret,
                     _XABORT_CODE(ret));
+#endif
+#ifdef RTM_STAT
             g_rtm_abort_cnt++;
 #endif
             spin_lock(&g_lock);
@@ -56,11 +67,12 @@ static void __rtm_force_inline bb_end() {
         if (!spin_lockable(&g_lock)) {
             _xabort(1);
         }
-        uint64_t ts = rdtsc();
+        uint64_t ts = gettime();
         _xend();
         log_commit(ts);
     } else {
-        uint64_t ts = rdtsc();
+        uint64_t ts = gettime();
+        barrier();
         spin_unlock(&g_lock);
         log_commit(ts);
     }
