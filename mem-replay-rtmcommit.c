@@ -1,3 +1,4 @@
+#include "time.h"
 #include "mem.h"
 #include "log.h"
 #include <stdio.h>
@@ -36,6 +37,10 @@ void mem_init(tid_t nthr, int nobj) {
 
 void mem_init_thr(tid_t tid) {
     g_tid = tid;
+}
+
+void mem_finish(tid_t nthr, int nobj) {
+    end_clock();
 }
 
 void mem_finish_thr() {

@@ -1,3 +1,4 @@
+#include "time.h"
 #include "mem.h"
 #include "log.h"
 #include "spinlock.h" // Just for barrier and cpu_relax
@@ -239,6 +240,10 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     *addr = val;
     obj_version[objid] += 2;
     memop++;
+}
+
+void mem_finish(tid_t nthr, int nobj) {
+    end_clock();
 }
 
 void mem_finish_thr() {}

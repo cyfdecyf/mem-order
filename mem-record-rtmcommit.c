@@ -1,3 +1,4 @@
+#include "time.h"
 #include "mem-record.h"
 #include "log.h"
 #include "ticket-spinlock.h"
@@ -39,7 +40,9 @@ static inline void log_commit(uint64_t ts) {
 
 static spinlock g_lock;
 
-void mem_init(tid_t nthr, int nobj) { }
+void mem_init(tid_t nthr, int nobj) {
+    begin_clock();
+}
 
 void mem_init_thr(tid_t tid) {
     g_tid = tid;
@@ -76,6 +79,10 @@ static void __rtm_force_inline bb_end() {
         spin_unlock(&g_lock);
         log_commit(ts);
     }
+}
+
+void mem_finish(tid_t nthr, int nobj) {
+    end_clock();
 }
 
 void mem_finish_thr() {

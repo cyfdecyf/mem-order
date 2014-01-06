@@ -1,3 +1,4 @@
+#include "time.h"
 #include "mem-record.h"
 #include "log.h"
 #include "spinlock.h"
@@ -37,6 +38,7 @@ void log_access(char acc, objid_t objid, version_t ver, uint32_t val) {
 void mem_init(tid_t nthr, int nobj) {
     g_nobj = nobj;
     g_objinfo = calloc_check(g_nobj, sizeof(*g_objinfo), "g_objinfo");
+    begin_clock();
 }
 
 void mem_init_thr(tid_t tid) {
@@ -105,6 +107,10 @@ void log_order(objid_t objid, version_t current_version,
 // Some implementation needs to call some function before mem_finish_thr.
 extern void before_finish_thr() __attribute__((weak));
 void before_finish_thr() {}
+
+void mem_finish(tid_t nthr, int nobj) {
+    end_clock();
+}
 
 void mem_finish_thr() {
     before_finish_thr();

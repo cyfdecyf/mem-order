@@ -73,6 +73,7 @@ extern objid_t (*calc_objid)(void *addr);
 #ifndef DUMMY
 void mem_init(tid_t nthr, int nobj);
 void mem_init_thr(tid_t tid);
+void mem_finish(tid_t nthr, int nobj);
 void mem_finish_thr();
 
 uint32_t mem_read(tid_t tid, uint32_t *addr);

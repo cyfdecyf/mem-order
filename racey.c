@@ -284,6 +284,7 @@ main(int argc, char* argv[])
     mix_sig = mix(g_sig[i], mix_sig);
 #endif
   }
+  mem_finish(NumProcs, MAX_ELEM);
 
   PHASE_MARKER; /* end of parallel phase */
   DPRINTF("end of parallel phase\n\n");

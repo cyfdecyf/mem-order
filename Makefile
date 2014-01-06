@@ -6,7 +6,7 @@ CXXFLAGS = -g -O2 -Wall
 VPATH=tsx
 
 LDFLAGS = -lpthread
-MEMOBJS = mem.o log.o
+MEMOBJS = time.o mem.o log.o 
 RECORD_OBJS = $(MEMOBJS) mem-record.o
 TARG = reorder-memop merge-memop merge-commit \
 	   addcnt-seqlock-rec \
