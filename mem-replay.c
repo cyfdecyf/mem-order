@@ -96,27 +96,24 @@ struct replay_wait_memop *next_reader_memop(objid_t objid) {
         return NULL;
     }
 
-    int i;
     struct replay_wait_memop *log = wait_reader_log[objid].log;
     version_t version = obj_version[objid];
     // Search if there's any read get the current version.
     DPRINTF("T%hhd W%ld B%d wait reader search for X @%ld idx[%d] = %d\n",
             g_tid, memop, objid, version, objid, wait_reader_log[objid].n);
-    // XXX As memop log index is shared among cores, can't skip log with the
-    // same tid to the checking core itself because other cores need this log
-    for (i = wait_reader_log[objid].n;
-        i < wait_reader_log[objid].size && version > log[i].version;
-        i++);
 
-    if (i < wait_reader_log[objid].size && version == log[i].version) {
+    // Every read log should be processed.
+    int logid = wait_reader_log[objid].n;
+    assert(version <= log[logid].version);
+
+    if (logid < wait_reader_log[objid].size && version == log[logid].version) {
         // This log is used, so start from next one on next scan.
-        wait_reader_log[objid].n = i + 1;
+        wait_reader_log[objid].n++;
         pthread_mutex_unlock(&wait_reader_log[objid].mutex);
-        return &log[i];
+        return &log[logid];
     }
-    wait_reader_log[objid].n = i;
     DPRINTF("T%d W%ld B%d wait reader No X @%ld found idx[%d] = %d\n",
-        g_tid, memop, objid, version, objid, i);
+        g_tid, memop, objid, version, objid, logid);
     pthread_mutex_unlock(&wait_reader_log[objid].mutex);
     return NULL;
 }
