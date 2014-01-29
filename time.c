@@ -14,10 +14,14 @@ static inline uint64_t get_tsc() {
 }
 
 void begin_clock() {
+#ifdef ENABLE_TIME
     begin_tsc = get_tsc();
+#endif
 }
 
 void end_clock() {
+#ifdef ENABLE_TIME
     end_tsc = get_tsc();
     printf("tsc %lf\n", (end_tsc - begin_tsc)/FREQ);
+#endif
 }
