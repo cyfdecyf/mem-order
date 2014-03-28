@@ -35,8 +35,7 @@ static void process_1log(struct batmem_acc *acc) {
         last->version = acc->version;
     }
     if (is_write) {
-        last->version += 2;
-        last->memop = ~memop;
+        last->memop = -1;
     } else {
         last->memop = memop;
     }

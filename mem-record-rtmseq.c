@@ -146,8 +146,7 @@ void mem_write(tid_t tid, uint32_t *addr, uint32_t val) {
     log_access('W', objid, version, val);
 #endif
 
-    lastobj->memop = ~memop; // flip to mark last memop as write
-    lastobj->version = version + 2;
+    lastobj->memop = -1;
     memop++;
 }
 
